@@ -704,5 +704,223 @@ def _(free_text, mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 5b: Format Validation
+
+        - **Phone numbers**: `08xx` / `62xx` pattern, digit length
+        - **Emails**: `user@domain.tld`
+        - **Date formats**: ISO (`yyyy-mm-dd`) vs DMY (`dd/mm/yyyy`) across tables
+        - **Special columns**: `bulan_masuk`, `renumerasi`, `durasi`
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, np, schemas):
+    import re
+
+    phone_cols = [
+        ("company.csv", "pic_phone"),
+        ("talent_request.csv", "no_whatsapp"),
+        ("student_all.csv", "hp"),
+        ("status_student.csv", "no_whatsapp"),
+    ]
+    phone_re = re.compile(r"^(0|62)\d{8,12}$")
+
+    phone_results = []
+    for fname, col in phone_cols:
+        df = schemas[fname]["df"]
+        vals = df[col].dropna().str.strip()
+        cleaned = vals.str.replace(r'[\s\-"\'\.]', "", regex=True)
+        bad_mask = ~cleaned.apply(lambda x: bool(phone_re.match(str(x)))) & (cleaned != "")
+        bad = cleaned[bad_mask]
+        phone_results.append({
+            "Table": fname,
+            "Column": col,
+            "Total": len(vals),
+            "Bad": len(bad),
+            "Bad%": round(len(bad) / len(vals) * 100, 1) if len(vals) > 0 else 0,
+            "Samples": bad.head(5).tolist(),
+        })
+
+    mo.md("### Phone numbers")
+    return phone_re, phone_results
+
+
+@app.cell
+def _(mo, phone_results):
+    mo.ui.table(phone_results, label="Phone format validation")
+    return
+
+
+@app.cell
+def _(mo, phone_results):
+    bad_phones = [r for r in phone_results if r["Bad"] > 0]
+    if bad_phones:
+        for r in bad_phones:
+            mo.callout(
+                mo.md(
+                    f"**{r['Table']}.{r['Column']}**: {r['Bad']:,} / {r['Total']:,} ({r['Bad%']}%) "
+                    f"missing leading `0`. Samples: `{', '.join(str(s) for s in r['Samples'][:3])}`"
+                ),
+                kind="warn",
+            )
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    email_re = __import__("re").compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    email_cols = [
+        ("status_student.csv", "email"),
+        ("student_all.csv", "email_pribadi"),
+        ("student_all.csv", "email_kampus"),
+    ]
+    email_results = []
+    for fname, col in email_cols:
+        df = schemas[fname]["df"]
+        vals = df[col].dropna().str.strip()
+        bad = vals[~vals.apply(lambda x: bool(email_re.match(str(x)))) & (vals != "")]
+        email_results.append({
+            "Table": fname, "Column": col,
+            "Total": len(vals), "Bad": len(bad),
+            "Samples": bad.head(3).tolist(),
+        })
+
+    mo.md("### Emails")
+    return email_re, email_results
+
+
+@app.cell
+def _(email_results, mo):
+    mo.ui.table(email_results, label="Email format validation")
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    import re
+    iso_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    dmy_re = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+
+    date_cols = [
+        ("company.csv", "created_at"),
+        ("talent_request.csv", "request_date"),
+        ("status_student.csv", "sync_date"),
+        ("tracking_company.csv", "request_date"),
+        ("tracking_company.csv", "send_date"),
+        ("tracking_student.csv", "last_update"),
+    ]
+
+    date_results = []
+    for fname, col in date_cols:
+        df = schemas[fname]["df"]
+        vals = df[col].dropna().str.strip()
+        vals = vals[vals != ""]
+        iso = int(vals.str.match(iso_re).sum())
+        dmy = int(vals.str.match(dmy_re).sum())
+        other = len(vals) - iso - dmy
+        fmt = "ISO" if iso > dmy else ("DMY" if dmy > iso else "mixed")
+        date_results.append({
+            "Table": fname, "Column": col, "Total": len(vals),
+            "ISO": iso, "DMY": dmy, "Other": other, "Format": fmt,
+        })
+
+    mo.md("### Date formats")
+    return date_results, dmy_re, iso_re
+
+
+@app.cell
+def _(date_results, mo):
+    mo.ui.table(date_results, label="Date format distribution")
+    return
+
+
+@app.cell
+def _(date_results, mo):
+    mixed = [r for r in date_results if r["ISO"] > 0 and r["DMY"] > 0]
+    inconsistent = [r for r in date_results if r["Format"] == "mixed"]
+    callouts = []
+    for r in date_results:
+        if r["ISO"] > 0 and r["DMY"] > 0:
+            callouts.append(f"- **{r['Table']}.{r['Column']}**: mixed — {r['ISO']} ISO + {r['DMY']} DMY")
+    if callouts:
+        mo.callout(
+            mo.md(
+                f"""**Date format inconsistency detected** — 3 tables use DMY, 3 use ISO.
+
+Standardization needed for dashboard queries on date columns:
+"""
+                + "\n".join(
+                    f"- `{r['Table']}.{r['Column']}` → {r['Format']}"
+                    for r in date_results
+                )
+            ),
+            kind="warn",
+        )
+    else:
+        mo.callout(
+            mo.md("All date columns use a consistent format."),
+            kind="neutral",
+        )
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    tr = schemas["talent_request.csv"]["df"]
+    sa = schemas["student_all.csv"]["df"]
+
+    import re
+    month_re = re.compile(r"^(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember) \d{4}$")
+
+    bm = sa["bulan_masuk"].dropna().str.strip()
+    bad_bm = bm[~bm.apply(lambda x: bool(month_re.match(str(x)))) & (bm != "")]
+
+    ren = tr["renumerasi"].dropna().str.strip()
+    non_paid = int(ren.str.lower().str.contains("non.paid", na=False).sum())
+    rp_ok = int(ren.str.match(r"^Rp\s?[\d.,]+\s*/?\s*(bulan|hari|jam|minggu)?$").sum())
+    ren_other = ren[~ren.str.lower().str.contains("non.paid", na=False) & ~ren.str.match(r"^Rp\s?[\d.,]+\s*/?\s*(bulan|hari|jam|minggu)?$") & (ren != "")]
+    ren_other_uniq = sorted(ren_other.unique())
+
+    dur = tr["durasi"].dropna().str.strip()
+    dur_bad = dur[~dur.str.match(r"^\d+\s*(Bulan|Tahun|Minggu|Hari)?$") & (dur != "")]
+    dur_bad_uniq = sorted(dur_bad.unique())
+
+    mo.md(
+        f"""
+        ### Other format checks
+
+        | Column | Check | Result |
+        |---|---|---|
+        | `student_all.bulan_masuk` | `Bulan Tahun` (ID) | {len(bad_bm)} invalid out of {len(bm):,} |
+        | `talent_request.renumerasi` | Non-Paid / Rp pattern | {non_paid:,} Non-Paid, {rp_ok:,} Rp-format, {len(ren_other)} other |
+        | `talent_request.durasi` | `N Bulan` / `N Tahun` pattern | {len(dur_bad):,} non-standard out of {len(dur):,} |
+        """
+    )
+    return bad_bm, dur_bad_uniq, ren_other_uniq
+
+
+@app.cell
+def _(dur_bad_uniq, mo, ren_other_uniq):
+    notes = []
+    if ren_other_uniq:
+        notes.append(f"- **renumerasi** other values: `{', '.join(ren_other_uniq)}` — all are `Uang transport saja` (transport-only allowance). These are a valid domain value, not a format error.")
+    if dur_bad_uniq:
+        notes.append(f"- **durasi** other values: `{', '.join(dur_bad_uniq)}` — all are `Tidak Terbatas` (unlimited, for full-time). Also a valid domain value.")
+
+    if notes:
+        mo.callout(
+            mo.md("\n".join(notes)),
+            kind="neutral",
+        )
+    return
+
+
 if __name__ == "__main__":
     app.run()

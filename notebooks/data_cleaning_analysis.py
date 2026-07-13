@@ -7,18 +7,17 @@ app = marimo.App()
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # Data Cleaning Analysis — SSDC Dataset
+    mo.md("""
+    # Data Cleaning Analysis — SSDC Dataset
 
-        Analysis notebook to scan all 6 tables for issues needing cleanup before dashboard use.
-        """
-    )
+    Analysis notebook to scan all 6 tables for issues needing cleanup before dashboard use.
+    """)
     return
 
 
@@ -27,7 +26,8 @@ def _():
     import pandas as pd
     import numpy as np
     from pathlib import Path
-    return Path, np, pd
+
+    return Path, pd
 
 
 @app.cell
@@ -35,7 +35,149 @@ def _(Path):
     DATA_DIR = Path("data/Database SSDC")
     TABLES = sorted(DATA_DIR.glob("*.csv"))
     [t.name for t in TABLES]
-    return DATA_DIR, TABLES
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
+    ## Phase 1: Setup & Schema Sanity
+
+    Load all 6 CSVs, inspect shapes/dtypes, compare column names/counts against the PDF spec.
+    """)
+    return
+
+
+@app.cell
+def _():
+    EXPECTED = {
+        "company.csv": {
+            "cols": 9,
+            "names": [
+                "id_company", "company_name", "company_type", "industry_sector",
+                "kota", "skala_perusahaan", "pic_name", "pic_phone", "created_at",
+            ],
+        },
+        "talent_request.csv": {
+            "cols": 19,
+            "names": [
+                "id_talent_req", "id_company", "nama_perusahaan", "alamat_kantor",
+                "industri_sektor", "nama_pic", "no_whatsapp", "nama_posisi",
+                "jenis_penempatan", "headcount", "bidang_studi_dibutuhkan",
+                "minimum_semester", "deskripsi_requirement", "working_arrangement",
+                "working_arrangement_detail", "durasi", "renumerasi", "request_date",
+                "sumber_baris_form",
+            ],
+        },
+        "student_all.csv": {
+            "cols": 10,
+            "names": [
+                "NIM", "nama", "program_studi", "semester", "hp", "email_pribadi",
+                "email_kampus", "bidang_minat", "jenis_penempatan_diminati", "bulan_masuk",
+            ],
+        },
+        "status_student.csv": {
+            "cols": 15,
+            "names": [
+                "id_status", "NIM", "email", "nama", "semester", "program_studi",
+                "no_whatsapp", "CV", "portofolio", "IPK", "status", "domisili",
+                "ketersediaan", "tools", "sync_date",
+            ],
+        },
+        "tracking_company.csv": {
+            "cols": 13,
+            "names": [
+                "id_tracking_company", "id_talent_req", "id_company",
+                "nama_perusahaan", "posisi", "jenis_penempatan", "bidang_studi_dicari",
+                "progress", "request_date", "send_date", "jumlah_permintaan",
+                "jumlah_dikirimkan", "list_nim",
+            ],
+        },
+        "tracking_student.csv": {
+            "cols": 11,
+            "names": [
+                "id_tracking_student", "NIM", "id_tracking_company", "student_name",
+                "internship_semester", "company", "position", "jenis_penempatan",
+                "progress_student", "last_update", "rejection",
+            ],
+        },
+    }
+
+    DELIMITERS = {
+        "status_student.csv": ";",
+    }
+    return DELIMITERS, EXPECTED
+
+
+@app.cell
+def _(DELIMITERS, EXPECTED, Path, pd):
+    def load_table(path):
+        delim = DELIMITERS.get(path.name, ",")
+        return pd.read_csv(path, delimiter=delim, encoding="utf-8-sig", dtype=str)
+
+    schemas = {}
+    for f in sorted(Path("data/Database SSDC").glob("*.csv")):
+        df = load_table(f)
+        name = f.name
+
+        actual_cols = list(df.columns)
+        expected = EXPECTED.get(name, {})
+        expected_names = expected.get("names", [])
+        expected_count = expected.get("cols", None)
+
+        missing = [c for c in expected_names if c not in actual_cols]
+        extra = [c for c in actual_cols if c not in expected_names]
+        has_bom = any(actual_cols[0].startswith("\ufeff") for c in actual_cols[:1]) if actual_cols else False
+
+        schemas[name] = {
+            "df": df,
+            "rows": len(df),
+            "cols": len(actual_cols),
+            "expected_cols": expected_count,
+            "missing_cols": missing,
+            "extra_cols": extra,
+            "has_bom": has_bom,
+            "dtypes": df.dtypes.to_dict(),
+            "columns": actual_cols,
+        }
+    schemas
+    return (schemas,)
+
+
+@app.cell
+def _(mo, schemas):
+    rows = []
+    for fname, s in schemas.items():
+        col_status = "ok" if s["expected_cols"] is None else (
+            "ok" if s["cols"] == s["expected_cols"] else f"mismatch ({s['cols']} vs {s['expected_cols']})"
+        )
+        missing = ", ".join(s["missing_cols"]) if s["missing_cols"] else "-"
+        extra = ", ".join(s["extra_cols"]) if s["extra_cols"] else "-"
+        rows.append({
+            "Table": fname,
+            "Rows": s["rows"],
+            "Cols": col_status,
+            "Missing vs spec": missing,
+            "Extra vs spec": extra,
+            "BOM": s["has_bom"],
+        })
+
+    mo.ui.table(
+        rows,
+        label=f"Schema summary — 6 tables loaded, {sum(s['rows'] for s in schemas.values()):,} total rows",
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    **Note:** PDF docs mention 16 cols for `status_student` (includes `eligible`) and 14 for
+    `tracking_company` (includes internal spreadsheet cols A,B). The actual CSVs have 15 and 13
+    respectively — these are **expected** based on the docs' own note.
+    """)
+    return
 
 
 if __name__ == "__main__":

@@ -180,5 +180,111 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 2: Missing Values
+
+        Per column: count/% of empty strings and NA-like tokens (`na`, `n/a`, `null`, `none`, `-`).
+        Flag PK/FK/date columns that must never be null.
+        """
+    )
+    return
+
+
+@app.cell
+def _():
+    CRITICAL = {
+        "company.csv":             {"id_company", "company_name", "created_at"},
+        "talent_request.csv":      {"id_talent_req", "id_company", "request_date"},
+        "student_all.csv":         {"NIM", "nama"},
+        "status_student.csv":      {"id_status", "NIM", "sync_date"},
+        "tracking_company.csv":    {"id_tracking_company", "id_talent_req", "id_company"},
+        "tracking_student.csv":    {"id_tracking_student", "NIM", "id_tracking_company"},
+    }
+
+    NA_TOKENS = {"na", "n/a", "null", "none", "nan"}
+    return CRITICAL, NA_TOKENS
+
+
+@app.cell
+def _(CRITICAL, NA_TOKENS, schemas):
+    missing_rows = []
+
+    for fname, s in schemas.items():
+        df = s["df"]
+        total = s["rows"]
+        critical = CRITICAL.get(fname, set())
+
+        for col in s["columns"]:
+            empty_mask = df[col].isna() | (df[col].str.strip() == "")
+            na_mask = df[col].str.strip().str.lower().isin(NA_TOKENS)
+            blank_count = (empty_mask | na_mask).sum()
+
+            if blank_count == 0:
+                continue
+
+            pct = blank_count / total * 100
+            is_critical = col.lower() in {c.lower() for c in critical}
+            sample = df.loc[empty_mask | na_mask, col].head(3).tolist()
+
+            missing_rows.append({
+                "Table": fname,
+                "Column": col,
+                "Missing": blank_count,
+                "%": round(pct, 2),
+                "Critical": "YES" if is_critical else "",
+                "Sample": sample,
+            })
+
+    missing_df = missing_rows
+    len(missing_rows)
+    return missing_rows
+
+
+@app.cell
+def _(mo, missing_rows):
+    mo.md(
+        f"""
+        ### Missing value findings
+
+        {len(missing_rows)} column × table combinations have missing/blank values.
+        {sum(1 for r in missing_rows if r['Critical'] == 'YES')} of those are critical columns.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, missing_rows):
+    if missing_rows:
+        mo.ui.table(
+            sorted(missing_rows, key=lambda r: (-r["Missing"], r["Table"], r["Column"])),
+            selection=None,
+            label="Missing values per column (sorted by count descending)",
+        )
+    else:
+        mo.md("No missing values found in any column.")
+    return
+
+
+@app.cell
+def _(mo, missing_rows):
+    critical_hits = [r for r in missing_rows if r["Critical"] == "YES"]
+    if critical_hits:
+        mo.callout(
+            mo.md(
+                "\n".join(
+                    f"- **{r['Table']}.{r['Column']}**: {r['Missing']} missing ({r['%']}%)"
+                    for r in sorted(critical_hits, key=lambda r: (-r["Missing"], r["Table"]))
+                )
+            ),
+            kind="warn",
+        )
+    return
+
+
 if __name__ == "__main__":
     app.run()

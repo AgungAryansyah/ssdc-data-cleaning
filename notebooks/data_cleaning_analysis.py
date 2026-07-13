@@ -1202,5 +1202,142 @@ def _(mo, schemas):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 7: Consolidated Findings
+
+        Aggregated summary of all issues discovered across Phases 1–6, ranked by severity.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    findings = [
+        {
+            "Severity": "HIGH",
+            "Table": "tracking_company",
+            "Column": "list_nim",
+            "Issue": "Garbage NIM values",
+            "Detail": "48 NIM entries in `list_nim` are the truncated value `\"2\"` — cannot be matched to `student_all`.",
+            "Affected": "48 (in ~40 TC records)",
+            "Suggested fix": "Flag for manual review. Drop `\"2\"` from `list_nim` before splitting. Investigate source of truncation.",
+        },
+        {
+            "Severity": "HIGH",
+            "Table": "status_student",
+            "Column": "no_whatsapp",
+            "Issue": "Missing leading 0 on phone",
+            "Detail": "All 25,000 phone numbers are 11-digit strings starting with `8` instead of `08`. `student_all.hp` has correct format.",
+            "Affected": "25,000 / 25,000 (100%)",
+            "Suggested fix": "Prepend `0` to all values in `status_student.no_whatsapp` to match `student_all.hp` format.",
+        },
+        {
+            "Severity": "HIGH",
+            "Table": "status_student ⇄ tracking_student",
+            "Column": "ketersediaan / rejection",
+            "Issue": "Placement status inconsistency",
+            "Detail": "4,163 NIMs marked `Placed` in `status_student` have no `Placement` record in `tracking_student`. 621 NIMs have `Placement` in TS but not `Placed` in SS.",
+            "Affected": "4,163 + 621 = 4,784 records",
+            "Suggested fix": "Audit placement workflow. Either create missing TS records for SS-Placed students, or update `ketersediaan` based on TS reality. Add a dashboard reconciliation view.",
+        },
+        {
+            "Severity": "MEDIUM",
+            "Table": "Multiple",
+            "Column": "Date columns",
+            "Issue": "Mixed date formats",
+            "Detail": "3 tables use ISO (`yyyy-mm-dd`): `company.created_at`, `talent_request.request_date`, `tracking_student.last_update`. 3 tables use DMY (`dd/mm/yyyy`): `status_student.sync_date`, `tracking_company.request_date`, `tracking_company.send_date`.",
+            "Affected": "~53,000 rows across 3 tables",
+            "Suggested fix": "Standardize all date columns to a single format (prefer ISO `yyyy-mm-dd`) during data cleaning pipeline. Parse DMY format and convert.",
+        },
+        {
+            "Severity": "MEDIUM",
+            "Table": "tracking_company",
+            "Column": "send_date, list_nim",
+            "Issue": "Expected blanks for unsent records",
+            "Detail": "598 records (5%) have empty `send_date` and `list_nim`. These correspond to `jumlah_dikirimkan = 0` — unsent draft/submitted tracking records.",
+            "Affected": "598 / 12,000 (5%)",
+            "Suggested fix": "Document as expected. Ensure dashboard queries handle NULLs in these columns (e.g., filter out `send_date IS NULL` for sent-only views).",
+        },
+        {
+            "Severity": "LOW",
+            "Table": "status_student",
+            "Column": "(missing)",
+            "Issue": "Missing `eligible` column vs PDF spec",
+            "Detail": "PDF docs describe a 16th column `eligible` (VARCHAR) not present in the CSV. Can be derived from `status='Active' AND CV='Ada' AND IPK >= ...`.",
+            "Affected": "N/A (column absent)",
+            "Suggested fix": "Compute `eligible` as a derived column in the dashboard, no data fix needed.",
+        },
+        {
+            "Severity": "LOW",
+            "Table": "talent_request",
+            "Column": "renumerasi",
+            "Issue": "Non-standard values",
+            "Detail": "1,493 records have `Uang transport saja` instead of `Non-Paid` or `Rp X/bulan`. Valid domain value but requires custom parsing.",
+            "Affected": "1,493 / 12,000 (12.4%)",
+            "Suggested fix": "Map `Uang transport saja` to a separate category or treat as `Non-Paid` with note. Standardize renumerasi to 3 categories: Paid, Non-Paid, Transport-Only.",
+        },
+        {
+            "Severity": "LOW",
+            "Table": "talent_request",
+            "Column": "durasi",
+            "Issue": "Non-standard values",
+            "Detail": "1,188 records have `Tidak Terbatas` (unlimited) instead of `N Bulan/Tahun`. Valid domain value for full-time positions.",
+            "Affected": "1,188 / 12,000 (9.9%)",
+            "Suggested fix": "Document as expected. Map `Tidak Terbatas` to a sentinel value (e.g., 999 months) for numeric analysis.",
+        },
+        {
+            "Severity": "OK",
+            "Table": "status_student",
+            "Column": "all enum columns",
+            "Issue": "No issues",
+            "Detail": "All 15 enum columns across 6 tables conform 100% to PDF spec. Zero typos or unknown values.",
+            "Affected": "0",
+            "Suggested fix": "None needed.",
+        },
+        {
+            "Severity": "OK",
+            "Table": "All",
+            "Column": "PKs / FKs / emails / ranges",
+            "Issue": "No issues",
+            "Detail": "No PK duplicates, no FK orphans, all emails valid, all numeric ranges within bounds, all denormalized fields consistent across tables.",
+            "Affected": "0",
+            "Suggested fix": "None needed.",
+        },
+    ]
+
+    mo.ui.table(
+        sorted(findings, key=lambda f: {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "OK": 3}[f["Severity"]]),
+        label="Consolidated findings — data cleaning issues ranked by severity",
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.callout(
+        mo.md(
+            """
+            ### Dashboard readiness: **80–90% clean**
+
+            The dataset is structurally sound (PKs, FKs, enums, emails, ranges all valid).
+            Three issues should be fixed before dashboard use:
+
+            1. **Normalize phones** — prepend `0` to `status_student.no_whatsapp`
+            2. **Standardize dates** — unify all date columns to ISO format
+            3. **Audit placement gap** — 4,784 records with inconsistent placement status
+
+            Remaining issues (garbage `list_nim`, `renumerasi`/`durasi` text values) are low-volume and can be handled in the dashboard layer.
+            """
+        ),
+        kind="neutral",
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

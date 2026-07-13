@@ -4,11 +4,27 @@ __generated_with = "0.23.14"
 app = marimo.App()
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _():
     import marimo as mo
 
     return (mo,)
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -21,6 +37,14 @@ def _(mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _():
     import pandas as pd
@@ -30,12 +54,28 @@ def _():
     return Path, pd
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(Path):
     DATA_DIR = Path("data/Database SSDC")
     TABLES = sorted(DATA_DIR.glob("*.csv"))
-    [t.name for t in TABLES]
+    [_t.name for _t in TABLES]
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -47,6 +87,14 @@ def _(mo):
     Load all 6 CSVs, inspect shapes/dtypes, compare column names/counts against the PDF spec.
     """)
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -110,6 +158,14 @@ def _():
     return DELIMITERS, EXPECTED
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(DELIMITERS, EXPECTED, Path, pd):
     def load_table(path):
@@ -118,27 +174,27 @@ def _(DELIMITERS, EXPECTED, Path, pd):
 
     schemas = {}
     for f in sorted(Path("data/Database SSDC").glob("*.csv")):
-        df = load_table(f)
+        _df = load_table(f)
         name = f.name
 
-        actual_cols = list(df.columns)
+        actual_cols = list(_df.columns)
         expected = EXPECTED.get(name, {})
         expected_names = expected.get("names", [])
         expected_count = expected.get("cols", None)
 
-        missing = [c for c in expected_names if c not in actual_cols]
-        extra = [c for c in actual_cols if c not in expected_names]
-        has_bom = any(c.startswith("\ufeff") for c in actual_cols[:1])
+        _missing = [_c for _c in expected_names if _c not in actual_cols]
+        _extra = [_c for _c in actual_cols if _c not in expected_names]
+        has_bom = any(_c.startswith("\ufeff") for _c in actual_cols[:1])
 
         schemas[name] = {
-            "df": df,
-            "rows": len(df),
+            "df": _df,
+            "rows": len(_df),
             "cols": len(actual_cols),
             "expected_cols": expected_count,
-            "missing_cols": missing,
-            "extra_cols": extra,
+            "missing_cols": _missing,
+            "extra_cols": _extra,
             "has_bom": has_bom,
-            "dtypes": df.dtypes.to_dict(),
+            "dtypes": _df.dtypes.to_dict(),
             "columns": actual_cols,
         }
 
@@ -146,29 +202,45 @@ def _(DELIMITERS, EXPECTED, Path, pd):
     return (schemas,)
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, schemas):
     rows = []
-    for fname, s in schemas.items():
-        col_status = "ok" if s["expected_cols"] is None else (
-            "ok" if s["cols"] == s["expected_cols"] else f"mismatch ({s['cols']} vs {s['expected_cols']})"
+    for _fname, _s in schemas.items():
+        col_status = "ok" if _s["expected_cols"] is None else (
+            "ok" if _s["cols"] == _s["expected_cols"] else f"mismatch ({_s['cols']} vs {_s['expected_cols']})"
         )
-        missing = ", ".join(s["missing_cols"]) if s["missing_cols"] else "-"
-        extra = ", ".join(s["extra_cols"]) if s["extra_cols"] else "-"
+        _missing = ", ".join(_s["missing_cols"]) if _s["missing_cols"] else "-"
+        _extra = ", ".join(_s["extra_cols"]) if _s["extra_cols"] else "-"
         rows.append({
-            "Table": fname,
-            "Rows": s["rows"],
+            "Table": _fname,
+            "Rows": _s["rows"],
             "Cols": col_status,
-            "Missing vs spec": missing,
-            "Extra vs spec": extra,
-            "BOM": s["has_bom"],
+            "Missing vs spec": _missing,
+            "Extra vs spec": _extra,
+            "BOM": _s["has_bom"],
         })
 
     mo.ui.table(
         rows,
-        label=f"Schema summary — 6 tables loaded, {sum(s['rows'] for s in schemas.values()):,} total rows",
+        _label=f"Schema summary — 6 tables loaded, {sum(_s['rows'] for _s in schemas.values()):,} total rows",
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -181,6 +253,14 @@ def _(mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo):
     mo.md("""
@@ -191,6 +271,14 @@ def _(mo):
     Flag PK/FK/date columns that must never be null.
     """)
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -208,29 +296,37 @@ def _():
     return CRITICAL, NA_TOKENS
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(CRITICAL, NA_TOKENS, schemas):
     missing_rows = []
 
-    for fname, s in schemas.items():
-        df = s["df"]
-        total = s["rows"]
-        critical = CRITICAL.get(fname, set())
+    for _fname, _s in schemas.items():
+        _df = _s["df"]
+        _total = _s["rows"]
+        critical = CRITICAL.get(_fname, set())
 
-        for col in s["columns"]:
-            empty_mask = df[col].isna() | (df[col].str.strip() == "")
-            na_mask = df[col].str.strip().str.lower().isin(NA_TOKENS)
+        for _col in _s["columns"]:
+            empty_mask = _df[_col].isna() | (_df[_col].str.strip() == "")
+            na_mask = _df[_col].str.strip().str.lower().isin(NA_TOKENS)
             blank_count = (empty_mask | na_mask).sum()
 
             if blank_count == 0:
                 continue
 
-            pct = blank_count / total * 100
-            is_critical = col.lower() in {c.lower() for c in critical}
+            pct = blank_count / _total * 100
+            is_critical = _col.lower() in {_c.lower() for _c in critical}
 
             missing_rows.append({
-                "Table": fname,
-                "Column": col,
+                "Table": _fname,
+                "Column": _col,
                 "Missing": blank_count,
                 "%": round(pct, 2),
                 "Critical": "YES" if is_critical else "",
@@ -240,10 +336,18 @@ def _(CRITICAL, NA_TOKENS, schemas):
     return (missing_rows,)
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(missing_rows, mo):
-    critical_hits = [r for r in missing_rows if r["Critical"] == "YES"]
-    total_crit = len(critical_hits)
+    _critical_hits = [_r for _r in missing_rows if _r["Critical"] == "YES"]
+    total_crit = len(_critical_hits)
 
     mo.md(
         f"""
@@ -256,38 +360,62 @@ def _(missing_rows, mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(missing_rows, mo):
     if missing_rows:
         mo.ui.table(
             sorted(missing_rows, key=lambda r: (-r["Missing"], r["Table"], r["Column"])),
             selection=None,
-            label="Missing values per column (sorted by count descending)",
+            _label="Missing values per column (sorted by count descending)",
         )
     else:
         mo.md("No missing values found in any column.")
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(missing_rows, mo):
-    critical_hits = [r for r in missing_rows if r["Critical"] == "YES"]
-    if critical_hits:
+    _critical_hits = [_r for _r in missing_rows if _r["Critical"] == "YES"]
+    if _critical_hits:
         mo.callout(
             mo.md(
                 "\n".join(
-                    f"- **{r['Table']}.{r['Column']}**: {r['Missing']} missing ({r['%']}%)"
-                    for r in sorted(critical_hits, key=lambda r: (-r["Missing"], r["Table"]))
+                    f"- **{_r['Table']}.{_r['Column']}**: {_r['Missing']} missing ({_r['%']}%)"
+                    for _r in sorted(_critical_hits, key=lambda _r: (-_r["Missing"], _r["Table"]))
                 )
             ),
-            kind="warn",
+            _kind="warn",
         )
     else:
         mo.callout(
             mo.md("All critical columns (PKs, FKs, dates) have no missing values."),
-            kind="neutral",
+            _kind="neutral",
         )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -302,6 +430,14 @@ def _(mo):
     - ID format conformance (`C\d+`, `TR\d+`, `SS\d+`, `TC\d+`, `TS\d+`, `NIM` = `\d{8,}`)
     """)
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -327,31 +463,39 @@ def _():
     return ID_FORMATS, PK_MAP
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(PK_MAP, schemas):
     dup_findings = []
 
-    for fname, s in schemas.items():
-        df = s["df"]
-        pk = PK_MAP[fname]
+    for _fname, _s in schemas.items():
+        _df = _s["df"]
+        _pk = PK_MAP[_fname]
 
-        dup_mask = df[pk].duplicated(keep=False)
+        dup_mask = _df[_pk].duplicated(keep=False)
         dup_count = dup_mask.sum()
-        dup_values = df.loc[dup_mask, pk].unique()
+        dup_values = _df.loc[dup_mask, _pk].unique()
 
         if dup_count > 0:
             dup_findings.append({
-                "Table": fname,
+                "Table": _fname,
                 "Issue": "PK duplicates",
                 "Count": len(dup_values),
                 "Rows affected": dup_count,
                 "Samples": sorted(dup_values)[:5],
             })
 
-        full_dup = df.duplicated().sum()
+        full_dup = _df.duplicated().sum()
         if full_dup > 0:
             dup_findings.append({
-                "Table": fname,
+                "Table": _fname,
                 "Issue": "Full-row duplicates",
                 "Count": full_dup,
                 "Rows affected": full_dup,
@@ -362,17 +506,25 @@ def _(PK_MAP, schemas):
     return (dup_findings,)
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, schemas):
-    sa = schemas["student_all.csv"]["df"]
-    ss = schemas["status_student.csv"]["df"]
+    _sa = schemas["student_all.csv"]["df"]
+    _ss = schemas["status_student.csv"]["df"]
 
-    sa_nims = set(sa["NIM"])
-    ss_nims = set(ss["NIM"])
+    _sa_nims = set(_sa["NIM"])
+    ss_nims = set(_ss["NIM"])
 
-    only_in_ss = ss_nims - sa_nims
-    only_in_sa = sa_nims - ss_nims
-    ss_dup_nims = len(ss["NIM"]) - ss["NIM"].nunique()
+    only_in_ss = ss_nims - _sa_nims
+    only_in_sa = _sa_nims - ss_nims
+    ss_dup_nims = len(_ss["NIM"]) - _ss["NIM"].nunique()
 
     mo.md(
         f"""
@@ -380,31 +532,39 @@ def _(mo, schemas):
 
         | Check | Result |
         |---|---|
-        | `student_all` NIM count | {len(sa):,} rows, {len(sa_nims):,} unique |
-        | `status_student` NIM count | {len(ss):,} rows, {len(ss_nims):,} unique |
+        | `student_all` NIM count | {len(_sa):,} rows, {len(_sa_nims):,} unique |
+        | `status_student` NIM count | {len(_ss):,} rows, {len(ss_nims):,} unique |
         | NIM in `status` but NOT in `student_all` | {len(only_in_ss)} |
         | NIM in `student_all` but NOT in `status` | {len(only_in_sa)} |
         | `status_student` NIM duplicates | {ss_dup_nims} |
         """
     )
-    return (sa_nims,)
+    return 
+
+
+
+
+
+
+
+
 
 
 @app.cell
 def _(ID_FORMATS, PK_MAP, mo, schemas):
     id_rows = []
-    for fname, pk in PK_MAP.items():
-        df = schemas[fname]["df"]
-        fmt_re, desc = ID_FORMATS[pk]
-        bad = sum(1 for v in df[pk] if not fmt_re.match(str(v)))
-        total = len(df)
+    for _fname, _pk in PK_MAP.items():
+        _df = schemas[_fname]["df"]
+        fmt_re, desc = ID_FORMATS[_pk]
+        _bad = sum(1 for _v in _df[_pk] if not fmt_re.match(str(_v)))
+        _total = len(_df)
         id_rows.append({
-            "Table": fname,
-            "Column": pk,
+            "Table": _fname,
+            "Column": _pk,
             "Expected": desc,
-            "Bad": bad,
-            "Total": total,
-            "Status": "OK" if bad == 0 else f"{bad}/{total} bad",
+            "Bad": _bad,
+            "Total": _total,
+            "Status": "OK" if _bad == 0 else f"{_bad}/{_total} bad",
         })
 
     mo.md(
@@ -416,13 +576,29 @@ def _(ID_FORMATS, PK_MAP, mo, schemas):
     return (id_rows,)
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(id_rows, mo):
     mo.ui.table(
         id_rows,
-        label="ID format check — all IDs match their expected pattern",
+        _label="ID format check — all IDs match their expected pattern",
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -430,14 +606,22 @@ def _(dup_findings, mo):
     if dup_findings:
         mo.callout(
             mo.ui.table(dup_findings, label="Duplicate findings"),
-            kind="warn",
+            _kind="warn",
         )
     else:
         mo.callout(
             mo.md("No duplicate records found — all PKs unique, no full-row duplicates."),
-            kind="neutral",
+            _kind="neutral",
         )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -454,25 +638,33 @@ def _(mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(schemas):
-    co = schemas["company.csv"]["df"]
-    tr = schemas["talent_request.csv"]["df"]
+    _co = schemas["company.csv"]["df"]
+    _tr = schemas["talent_request.csv"]["df"]
     tc = schemas["tracking_company.csv"]["df"]
-    ts = schemas["tracking_student.csv"]["df"]
-    sa = schemas["student_all.csv"]["df"]
+    _ts = schemas["tracking_student.csv"]["df"]
+    _sa = schemas["student_all.csv"]["df"]
 
-    co_ids = set(co["id_company"])
-    tr_ids = set(tr["id_talent_req"])
+    co_ids = set(_co["id_company"])
+    tr_ids = set(_tr["id_talent_req"])
     tc_ids = set(tc["id_tracking_company"])
-    sa_nims = set(sa["NIM"])
+    sa_nims = set(_sa["NIM"])
 
     fk_checks = [
-        ("talent_request.id_company", set(tr["id_company"]), co_ids),
+        ("talent_request.id_company", set(_tr["id_company"]), co_ids),
         ("tracking_company.id_company", set(tc["id_company"]), co_ids),
         ("tracking_company.id_talent_req", set(tc["id_talent_req"]), tr_ids),
-        ("tracking_student.id_tracking_company", set(ts["id_tracking_company"]), tc_ids),
-        ("tracking_student.NIM", set(ts["NIM"]), sa_nims),
+        ("tracking_student.id_tracking_company", set(_ts["id_tracking_company"]), tc_ids),
+        ("tracking_student.NIM", set(_ts["NIM"]), sa_nims),
     ]
 
     fk_results = []
@@ -488,29 +680,45 @@ def _(schemas):
     return fk_results, sa_nims, tc
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(fk_results, mo):
     mo.ui.table(
         fk_results,
-        label="Standard FK referential integrity — all 5 relationships clean",
+        _label="Standard FK referential integrity — all 5 relationships clean",
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
 def _(mo, sa_nims, tc):
     all_nims = []
     orphan_nims = []
-    for _, row in tc.iterrows():
-        val = str(row["list_nim"]) if row["list_nim"] is not None and str(row["list_nim"]).strip() else ""
-        if not val:
+    for _, _row in tc.iterrows():
+        _val = str(_row["list_nim"]) if _row["list_nim"] is not None and str(_row["list_nim"]).strip() else ""
+        if not _val:
             continue
-        for n in [x.strip() for x in val.split(",") if x.strip()]:
-            all_nims.append(n)
-            if n not in sa_nims:
-                orphan_nims.append((row["id_tracking_company"], n))
+        for _n in [x.strip() for x in _val.split(",") if x.strip()]:
+            all_nims.append(_n)
+            if _n not in sa_nims:
+                orphan_nims.append((_row["id_tracking_company"], _n))
 
-    unique_orphans = set(n for _, n in orphan_nims)
+    unique_orphans = set(_n for _, _n in orphan_nims)
 
     mo.md(
         f"""
@@ -524,11 +732,19 @@ def _(mo, sa_nims, tc):
     return all_nims, orphan_nims, unique_orphans
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(all_nims, mo, orphan_nims, unique_orphans):
     if orphan_nims:
         from collections import Counter
-        orphan_counts = Counter(n for _, n in orphan_nims)
+        orphan_counts = Counter(_n for _, _n in orphan_nims)
 
         mo.callout(
             mo.md(
@@ -537,15 +753,15 @@ def _(all_nims, mo, orphan_nims, unique_orphans):
 
                 """
                 + "\n".join(
-                    f'- `"{n}"` — {c}x'
-                    for n, c in orphan_counts.most_common(10)
+                    f'- `"{_n}"` — {_c}x'
+                    for _n, _c in orphan_counts.most_common(10)
                 )
                 + f"""
 
                 All orphan values are truncated/garbage NIMs. Most are `"2"` (48×). They cannot be matched to `student_all` and should be flagged for manual review or exclusion.
                 """
             ),
-            kind="warn",
+            _kind="warn",
         )
 
     nims_in_multiple = len(all_nims) - len(set(all_nims))
@@ -553,6 +769,14 @@ def _(all_nims, mo, orphan_nims, unique_orphans):
         f"**{nims_in_multiple:,}** NIMs appear in multiple `list_nim` entries — expected, as one student can be sent to multiple companies."
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -565,6 +789,14 @@ def _(mo):
     Surface typos, case variants, or unknown values.
     """)
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -597,17 +829,25 @@ def _():
     return (ENUM_SPECS,)
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(ENUM_SPECS, schemas):
     enum_results = []
-    for (fname, col), allowed in sorted(ENUM_SPECS):
-        df = schemas[fname]["df"]
-        actual = set(df[col].dropna().str.strip())
+    for (_fname, col), allowed in sorted(ENUM_SPECS):
+        _df = schemas[_fname]["df"]
+        actual = set(_df[col].dropna().str.strip())
         unknown = actual - allowed
-        unknown_counts = {v: int((df[col] == v).sum()) for v in unknown} if unknown else {}
+        unknown_counts = {_v: int((_df[col] == _v).sum()) for _v in unknown} if unknown else {}
 
         enum_results.append({
-            "Table": fname,
+            "Table": _fname,
             "Column": col,
             "Expected count": len(allowed),
             "Actual distinct": len(actual),
@@ -616,45 +856,69 @@ def _(ENUM_SPECS, schemas):
             "Unknown counts": unknown_counts if unknown else None,
         })
 
-    violations = [r for r in enum_results if r["Unknown"] > 0]
+    violations = [_r for _r in enum_results if _r["Unknown"] > 0]
     len(violations)
     return enum_results, violations
+
+
+
+
+
+
+
+
 
 
 @app.cell
 def _(enum_results, mo):
     summary = [
         {
-            "Table": r["Table"],
-            "Column": r["Column"],
-            "Allowed": r["Expected count"],
-            "Found": r["Actual distinct"],
-            "Unknown": r["Unknown"],
-            "Status": "OK" if r["Unknown"] == 0 else f"{r['Unknown']} unknown",
+            "Table": _r["Table"],
+            "Column": _r["Column"],
+            "Allowed": _r["Expected count"],
+            "Found": _r["Actual distinct"],
+            "Unknown": _r["Unknown"],
+            "Status": "OK" if _r["Unknown"] == 0 else f"{_r['Unknown']} unknown",
         }
-        for r in enum_results
+        for _r in enum_results
     ]
     mo.ui.table(summary, label=f"Enum validation — {len(summary)} columns checked")
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, violations):
     if violations:
-        for v in violations:
+        for _v in violations:
             mo.callout(
                 mo.md(
-                    f"**{v['Table']}.{v['Column']}** — {v['Unknown']} unknown: "
-                    + ", ".join(f"`{val}`" for val in v["Unknown values"])
+                    f"**{_v['Table']}.{_v['Column']}** — {_v['Unknown']} unknown: "
+                    + ", ".join(f"`{_val}`" for _val in _v["Unknown values"])
                 ),
-                kind="warn",
+                _kind="warn",
             )
     else:
         mo.callout(
             mo.md("All **15 enum columns** conform 100% to the PDF specification. No unknown values, typos, or case variants found."),
-            kind="neutral",
+            _kind="neutral",
         )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -671,13 +935,13 @@ def _(mo, schemas):
     ]
 
     free_text = []
-    for fname, col in free_text_cols:
-        df = schemas[fname]["df"]
-        vals = df[col].dropna().str.strip()
-        uniq = sorted(vals.unique())
+    for _fname, _col in free_text_cols:
+        _df = schemas[_fname]["df"]
+        _vals = _df[_col].dropna().str.strip()
+        uniq = sorted(_vals.unique())
         free_text.append({
-            "Table": fname,
-            "Column": col,
+            "Table": _fname,
+            "Column": _col,
             "Distinct": len(uniq),
             "Sample": ", ".join(uniq[:10]) if len(uniq) > 10 else ", ".join(uniq),
         })
@@ -686,10 +950,26 @@ def _(mo, schemas):
     return (free_text,)
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(free_text, mo):
     mo.ui.table(free_text, label="Free-text categorical columns — distinct value counts")
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -706,10 +986,16 @@ def _(mo):
     return
 
 
-@app.cell
-def _(mo, schemas):
-    import re
 
+
+
+
+
+
+
+
+@app.cell
+def _(mo, re, schemas):
     phone_cols = [
         ("company.csv", "pic_phone"),
         ("talent_request.csv", "no_whatsapp"),
@@ -719,23 +1005,31 @@ def _(mo, schemas):
     phone_re = re.compile(r"^(0|62)\d{8,12}$")
 
     phone_results = []
-    for fname, col in phone_cols:
-        df = schemas[fname]["df"]
-        vals = df[col].dropna().str.strip()
-        cleaned = vals.str.replace(r'[\s\-"\'\.]', "", regex=True)
+    for _fname, _col in phone_cols:
+        _df = schemas[_fname]["df"]
+        _vals = _df[_col].dropna().str.strip()
+        cleaned = _vals.str.replace(r'[\s\-"\'\.]', "", regex=True)
         bad_mask = ~cleaned.apply(lambda x: bool(phone_re.match(str(x)))) & (cleaned != "")
-        bad = cleaned[bad_mask]
+        _bad = cleaned[bad_mask]
         phone_results.append({
-            "Table": fname,
-            "Column": col,
-            "Total": len(vals),
-            "Bad": len(bad),
-            "Bad%": round(len(bad) / len(vals) * 100, 1) if len(vals) > 0 else 0,
-            "Samples": bad.head(5).tolist(),
+            "Table": _fname,
+            "Column": _col,
+            "Total": len(_vals),
+            "Bad": len(_bad),
+            "Bad%": round(len(_bad) / len(_vals) * 100, 1) if len(_vals) > 0 else 0,
+            "Samples": _bad.head(5).tolist(),
         })
 
     mo.md("### Phone numbers")
     return (phone_results,)
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -744,19 +1038,35 @@ def _(mo, phone_results):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, phone_results):
-    bad_phones = [r for r in phone_results if r["Bad"] > 0]
+    bad_phones = [_r for _r in phone_results if _r["Bad"] > 0]
     if bad_phones:
-        for r in bad_phones:
+        for _r in bad_phones:
             mo.callout(
                 mo.md(
-                    f"**{r['Table']}.{r['Column']}**: {r['Bad']:,} / {r['Total']:,} ({r['Bad%']}%) "
-                    f"missing leading `0`. Samples: `{', '.join(str(s) for s in r['Samples'][:3])}`"
+                    f"**{_r['Table']}.{_r['Column']}**: {_r['Bad']:,} / {_r['Total']:,} ({_r['Bad%']}%) "
+                    f"missing leading `0`. Samples: `{', '.join(str(_s) for _s in _r['Samples'][:3])}`"
                 ),
-                kind="warn",
+                _kind="warn",
             )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -768,18 +1078,26 @@ def _(mo, schemas):
         ("student_all.csv", "email_kampus"),
     ]
     email_results = []
-    for fname, col in email_cols:
-        df = schemas[fname]["df"]
-        vals = df[col].dropna().str.strip()
-        bad = vals[~vals.apply(lambda x: bool(email_re.match(str(x)))) & (vals != "")]
+    for _fname, _col in email_cols:
+        _df = schemas[_fname]["df"]
+        _vals = _df[_col].dropna().str.strip()
+        _bad = _vals[~_vals.apply(lambda x: bool(email_re.match(str(x)))) & (_vals != "")]
         email_results.append({
-            "Table": fname, "Column": col,
-            "Total": len(vals), "Bad": len(bad),
-            "Samples": bad.head(3).tolist(),
+            "Table": _fname, "Column": _col,
+            "Total": len(_vals), "Bad": len(_bad),
+            "Samples": _bad.head(3).tolist(),
         })
 
     mo.md("### Emails")
     return (email_results,)
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -788,13 +1106,20 @@ def _(email_results, mo):
     return
 
 
-@app.cell
-def _(mo, schemas):
-    import re
-    iso_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-    dmy_re = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 
-    date_cols = [
+
+
+
+
+
+
+
+@app.cell
+def _(mo, re, schemas):
+    _iso_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    _dmy_re = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+
+    _date_cols = [
         ("company.csv", "created_at"),
         ("talent_request.csv", "request_date"),
         ("status_student.csv", "sync_date"),
@@ -804,21 +1129,29 @@ def _(mo, schemas):
     ]
 
     date_results = []
-    for fname, col in date_cols:
-        df = schemas[fname]["df"]
-        vals = df[col].dropna().str.strip()
-        vals = vals[vals != ""]
-        iso = int(vals.str.match(iso_re).sum())
-        dmy = int(vals.str.match(dmy_re).sum())
-        other = len(vals) - iso - dmy
+    for _fname, _col in _date_cols:
+        _df = schemas[_fname]["df"]
+        _vals = _df[_col].dropna().str.strip()
+        _vals = _vals[_vals != ""]
+        iso = int(_vals.str.match(_iso_re).sum())
+        dmy = int(_vals.str.match(_dmy_re).sum())
+        other = len(_vals) - iso - dmy
         fmt = "ISO" if iso > dmy else ("DMY" if dmy > iso else "mixed")
         date_results.append({
-            "Table": fname, "Column": col, "Total": len(vals),
+            "Table": _fname, "Column": _col, "Total": len(_vals),
             "ISO": iso, "DMY": dmy, "Other": other, "Format": fmt,
         })
 
     mo.md("### Date formats")
     return (date_results,)
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -827,14 +1160,22 @@ def _(date_results, mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(date_results, mo):
-    mixed = [r for r in date_results if r["ISO"] > 0 and r["DMY"] > 0]
-    inconsistent = [r for r in date_results if r["Format"] == "mixed"]
+    mixed = [_r for _r in date_results if _r["ISO"] > 0 and _r["DMY"] > 0]
+    inconsistent = [_r for _r in date_results if _r["Format"] == "mixed"]
     callouts = []
-    for r in date_results:
-        if r["ISO"] > 0 and r["DMY"] > 0:
-            callouts.append(f"- **{r['Table']}.{r['Column']}**: mixed — {r['ISO']} ISO + {r['DMY']} DMY")
+    for _r in date_results:
+        if _r["ISO"] > 0 and _r["DMY"] > 0:
+            callouts.append(f"- **{_r['Table']}.{_r['Column']}**: mixed — {_r['ISO']} ISO + {_r['DMY']} DMY")
     if callouts:
         mo.callout(
             mo.md(
@@ -843,38 +1184,45 @@ def _(date_results, mo):
     Standardization needed for dashboard queries on date columns:
     """
                 + "\n".join(
-                    f"- `{r['Table']}.{r['Column']}` → {r['Format']}"
-                    for r in date_results
+                    f"- `{_r['Table']}.{_r['Column']}` → {_r['Format']}"
+                    for _r in date_results
                 )
             ),
-            kind="warn",
+            _kind="warn",
         )
     else:
         mo.callout(
             mo.md("All date columns use a consistent format."),
-            kind="neutral",
+            _kind="neutral",
         )
     return
 
 
-@app.cell
-def _(mo, schemas):
-    tr = schemas["talent_request.csv"]["df"]
-    sa = schemas["student_all.csv"]["df"]
 
-    import re
+
+
+
+
+
+
+
+@app.cell
+def _(mo, re, schemas):
+    _tr = schemas["talent_request.csv"]["df"]
+    _sa = schemas["student_all.csv"]["df"]
+
     month_re = re.compile(r"^(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember) \d{4}$")
 
-    bm = sa["bulan_masuk"].dropna().str.strip()
+    bm = _sa["bulan_masuk"].dropna().str.strip()
     bad_bm = bm[~bm.apply(lambda x: bool(month_re.match(str(x)))) & (bm != "")]
 
-    ren = tr["renumerasi"].dropna().str.strip()
+    ren = _tr["renumerasi"].dropna().str.strip()
     non_paid = int(ren.str.lower().str.contains("non.paid", na=False).sum())
     rp_ok = int(ren.str.match(r"^Rp\s?[\d.,]+\s*/?\s*(bulan|hari|jam|minggu)?$").sum())
     ren_other = ren[~ren.str.lower().str.contains("non.paid", na=False) & ~ren.str.match(r"^Rp\s?[\d.,]+\s*/?\s*(bulan|hari|jam|minggu)?$") & (ren != "")]
     ren_other_uniq = sorted(ren_other.unique())
 
-    dur = tr["durasi"].dropna().str.strip()
+    dur = _tr["durasi"].dropna().str.strip()
     dur_bad = dur[~dur.str.match(r"^\d+\s*(Bulan|Tahun|Minggu|Hari)?$") & (dur != "")]
     dur_bad_uniq = sorted(dur_bad.unique())
 
@@ -892,6 +1240,14 @@ def _(mo, schemas):
     return dur_bad_uniq, ren_other_uniq
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(dur_bad_uniq, mo, ren_other_uniq):
     notes = []
@@ -903,9 +1259,17 @@ def _(dur_bad_uniq, mo, ren_other_uniq):
     if notes:
         mo.callout(
             mo.md("\n".join(notes)),
-            kind="neutral",
+            _kind="neutral",
         )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -923,25 +1287,32 @@ def _(mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
-def _(mo, schemas):
-    ss = schemas["status_student.csv"]["df"]
-    sa = schemas["student_all.csv"]["df"]
-    tr = schemas["talent_request.csv"]["df"]
-    tc = schemas["tracking_company.csv"]["df"]
-    ts = schemas["tracking_student.csv"]["df"]
-    import pandas as pd
+def _(mo, pd, schemas):
+    _ss = schemas["status_student.csv"]["df"]
+    _sa = schemas["student_all.csv"]["df"]
+    _tr = schemas["talent_request.csv"]["df"]
+    _tc = schemas["tracking_company.csv"]["df"]
+    _ts = schemas["tracking_student.csv"]["df"]
 
-    ipk = pd.to_numeric(ss["IPK"], errors="coerce")
-    sem_sa = pd.to_numeric(sa["semester"], errors="coerce")
-    sem_ss = pd.to_numeric(ss["semester"], errors="coerce")
-    sem_ts = pd.to_numeric(ts["internship_semester"], errors="coerce")
-    hc = pd.to_numeric(tr["headcount"], errors="coerce")
-    ms = pd.to_numeric(tr["minimum_semester"], errors="coerce")
-    jp = pd.to_numeric(tc["jumlah_permintaan"], errors="coerce")
-    jd = pd.to_numeric(tc["jumlah_dikirimkan"], errors="coerce")
+    ipk = pd.to_numeric(_ss["IPK"], errors="coerce")
+    sem_sa = pd.to_numeric(_sa["semester"], errors="coerce")
+    sem_ss = pd.to_numeric(_ss["semester"], errors="coerce")
+    sem_ts = pd.to_numeric(_ts["internship_semester"], errors="coerce")
+    hc = pd.to_numeric(_tr["headcount"], errors="coerce")
+    ms = pd.to_numeric(_tr["minimum_semester"], errors="coerce")
+    jp = pd.to_numeric(_tc["jumlah_permintaan"], errors="coerce")
+    jd = pd.to_numeric(_tc["jumlah_dikirimkan"], errors="coerce")
 
-    sem_sent = pd.to_numeric(tc["jumlah_dikirimkan"], errors="coerce")
+    sem_sent = pd.to_numeric(_tc["jumlah_dikirimkan"], errors="coerce")
     less = int((jd < jp).sum())
     more = int((jd > jp).sum())
     equal = int((jd == jp).sum())
@@ -956,14 +1327,30 @@ def _(mo, schemas):
     ]
 
     mo.md("### Numeric ranges")
-    return equal, less, more, pd, range_rows, tc
+    return (pd, range_rows)
+
+
+
+
+
+
+
+
 
 
 @app.cell
 def _(mo, range_rows):
-    tbl = [{"Table": t[0], "Column": t[1], "Expected": t[2], "Actual range": t[3], "Extra": t[4], "Bad": t[5]} for t in range_rows]
+    tbl = [{"Table": _t[0], "Column": _t[1], "Expected": _t[2], "Actual range": _t[3], "Extra": _t[4], "Bad": _t[5]} for _t in range_rows]
     mo.ui.table(tbl, label="Numeric range checks — all within expected bounds")
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -982,26 +1369,33 @@ def _(equal, less, mo, more):
     return
 
 
-@app.cell
-def _(mo, schemas):
-    from datetime import date
-    tc = schemas["tracking_company.csv"]["df"]
-    tr = schemas["talent_request.csv"]["df"]
-    import re
 
-    iso_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-    dmy_re = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+
+
+
+
+
+
+
+@app.cell
+def _(mo, re, schemas):
+    from datetime import date
+    _tc = schemas["tracking_company.csv"]["df"]
+    _tr = schemas["talent_request.csv"]["df"]
+
+    _iso_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    _dmy_re = re.compile(r"^\d{2}/\d{2}/\d{4}$")
     now = date.today()
 
     def parse_date(s):
         try:
             from datetime import datetime
-            return datetime.strptime(s, "%d/%m/%Y").date() if dmy_re.match(s) else (
-                datetime.strptime(s, "%Y-%m-%d").date() if iso_re.match(s) else None)
+            return datetime.strptime(s, "%d/%m/%Y").date() if _dmy_re.match(s) else (
+                datetime.strptime(s, "%Y-%m-%d").date() if _iso_re.match(s) else None)
         except:
             return None
 
-    date_cols = [
+    _date_cols = [
         ("company.csv", "created_at"),
         ("talent_request.csv", "request_date"),
         ("status_student.csv", "sync_date"),
@@ -1010,22 +1404,30 @@ def _(mo, schemas):
         ("tracking_student.csv", "last_update"),
     ]
     date_rows = []
-    for fname, col in date_cols:
-        df = schemas[fname]["df"]
-        vals = df[col].dropna().str.strip()
-        vals = vals[vals != ""]
-        parsed = vals.apply(parse_date).dropna()
+    for _fname, _col in _date_cols:
+        _df = schemas[_fname]["df"]
+        _vals = _df[_col].dropna().str.strip()
+        _vals = _vals[_vals != ""]
+        parsed = _vals.apply(parse_date).dropna()
         future = int((parsed.apply(lambda d: d > now)).sum())
         pre2020 = int((parsed.apply(lambda d: d.year < 2020)).sum())
         date_min = parsed.min()
         date_max = parsed.max()
         date_rows.append({
-            "Table": fname, "Column": col, "Min": str(date_min), "Max": str(date_max),
+            "Table": _fname, "Column": _col, "Min": str(date_min), "Max": str(date_max),
             "Future": future, "Pre-2020": pre2020,
         })
 
     mo.md("### Date range validation")
-    return date_rows, tc
+    return date_rows, _tc
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -1034,23 +1436,31 @@ def _(date_rows, mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, pd, schemas):
-    tr = schemas["talent_request.csv"]["df"]
-    tc = schemas["tracking_company.csv"]["df"]
+    _tr = schemas["talent_request.csv"]["df"]
+    _tc = schemas["tracking_company.csv"]["df"]
 
-    jp_vs_hc = tc[["id_talent_req", "jumlah_permintaan"]].merge(
-        tr[["id_talent_req", "headcount"]], on="id_talent_req", how="left"
+    jp_vs_hc = _tc[["id_talent_req", "jumlah_permintaan"]].merge(
+        _tr[["id_talent_req", "headcount"]], on="id_talent_req", how="left"
     )
     jp_num = pd.to_numeric(jp_vs_hc["jumlah_permintaan"], errors="coerce")
     hc_num = pd.to_numeric(jp_vs_hc["headcount"], errors="coerce")
     mismatch = int((jp_num != hc_num).sum())
 
     list_mismatch = 0
-    for _, row in tc.iterrows():
-        val = str(row["list_nim"]) if pd.notna(row["list_nim"]) and str(row["list_nim"]).strip() else ""
-        nims = [n for n in val.split(",") if n.strip()]
-        sent = int(row["jumlah_dikirimkan"]) if pd.notna(row["jumlah_dikirimkan"]) and str(row["jumlah_dikirimkan"]).strip().isdigit() else 0
+    for _, _row in _tc.iterrows():
+        _val = str(_row["list_nim"]) if pd.notna(_row["list_nim"]) and str(_row["list_nim"]).strip() else ""
+        nims = [_n for _n in _val.split(",") if _n.strip()]
+        sent = int(_row["jumlah_dikirimkan"]) if pd.notna(_row["jumlah_dikirimkan"]) and str(_row["jumlah_dikirimkan"]).strip().isdigit() else 0
         if nims and len(nims) != sent:
             list_mismatch += 1
 
@@ -1065,6 +1475,14 @@ def _(mo, pd, schemas):
         """
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -1083,52 +1501,76 @@ def _(mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(schemas):
-    co = schemas["company.csv"]["df"]
+    _co = schemas["company.csv"]["df"]
     tr_raw = schemas["talent_request.csv"]["df"]
-    sa = schemas["student_all.csv"]["df"]
-    ss = schemas["status_student.csv"]["df"]
+    _sa = schemas["student_all.csv"]["df"]
+    _ss = schemas["status_student.csv"]["df"]
     tc_raw = schemas["tracking_company.csv"]["df"]
-    ts = schemas["tracking_student.csv"]["df"]
+    _ts = schemas["tracking_student.csv"]["df"]
 
     checks = []
 
     def chk(label, left_col, right_col, left_df, right_df, on_key):
-        m = left_df.merge(right_df[[on_key, right_col]], on=on_key, how="left", suffixes=("_l", "_r"))
+        _m = left_df.merge(right_df[[on_key, right_col]], on=on_key, how="left", suffixes=("_l", "_r"))
         lc = left_col if left_col != right_col else f"{left_col}_l"
         rc = right_col if left_col != right_col else f"{right_col}_r"
-        bad = int((m[lc] != m[rc]).sum())
-        checks.append({"Left": label, "Right": f"{on_key} → {right_col}", "Mismatches": bad})
-        return bad
+        _bad = int((_m[lc] != _m[rc]).sum())
+        checks.append({"Left": label, "Right": f"{on_key} → {right_col}", "Mismatches": _bad})
+        return _bad
 
-    chk("tr.nama_perusahaan", "nama_perusahaan", "company_name", tr_raw, co, "id_company")
-    chk("tc.nama_perusahaan", "nama_perusahaan", "company_name", tc_raw, co, "id_company")
-    chk("tr.industri_sektor", "industri_sektor", "industry_sector", tr_raw, co, "id_company")
+    chk("tr.nama_perusahaan", "nama_perusahaan", "company_name", tr_raw, _co, "id_company")
+    chk("tc.nama_perusahaan", "nama_perusahaan", "company_name", tc_raw, _co, "id_company")
+    chk("tr.industri_sektor", "industri_sektor", "industry_sector", tr_raw, _co, "id_company")
     chk("tc.posisi", "posisi", "nama_posisi", tc_raw, tr_raw, "id_talent_req")
     chk("tc.jenis_penempatan", "jenis_penempatan", "jenis_penempatan", tc_raw, tr_raw, "id_talent_req")
     chk("tc.bidang_studi_dicari", "bidang_studi_dicari", "bidang_studi_dibutuhkan", tc_raw, tr_raw, "id_talent_req")
-    chk("ts.jenis_penempatan", "jenis_penempatan", "jenis_penempatan", ts, tc_raw, "id_tracking_company")
-    chk("ts.company", "company", "nama_perusahaan", ts, tc_raw, "id_tracking_company")
-    chk("ts.position", "position", "posisi", ts, tc_raw, "id_tracking_company")
-    chk("ts.student_name", "student_name", "nama", ts, sa, "NIM")
-    chk("sa.nama", "nama", "nama", sa, ss, "NIM")
-    chk("sa.semester", "semester", "semester", sa, ss, "NIM")
-    chk("sa.program_studi", "program_studi", "program_studi", sa, ss, "NIM")
-    chk("sa.email_kampus", "email_kampus", "email", sa, ss, "NIM")
+    chk("ts.jenis_penempatan", "jenis_penempatan", "jenis_penempatan", _ts, tc_raw, "id_tracking_company")
+    chk("ts.company", "company", "nama_perusahaan", _ts, tc_raw, "id_tracking_company")
+    chk("ts.position", "position", "posisi", _ts, tc_raw, "id_tracking_company")
+    chk("ts.student_name", "student_name", "nama", _ts, _sa, "NIM")
+    chk("sa.nama", "nama", "nama", _sa, _ss, "NIM")
+    chk("sa.semester", "semester", "semester", _sa, _ss, "NIM")
+    chk("sa.program_studi", "program_studi", "program_studi", _sa, _ss, "NIM")
+    chk("sa.email_kampus", "email_kampus", "email", _sa, _ss, "NIM")
 
-    total_mismatches = sum(c["Mismatches"] for c in checks)
+    total_mismatches = sum(_c["Mismatches"] for _c in checks)
     total_mismatches
     return (checks,)
+
+
+
+
+
+
+
+
 
 
 @app.cell
 def _(checks, mo):
     mo.ui.table(
         checks,
-        label=f"Denormalized field consistency — {sum(c['Mismatches'] for c in checks)} total mismatches across {len(checks)} checks",
+        _label=f"Denormalized field consistency — {sum(_c['Mismatches'] for _c in checks)} total mismatches across {len(checks)} checks",
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -1144,14 +1586,22 @@ def _(mo):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, schemas):
-    sa = schemas["student_all.csv"]["df"]
-    ss = schemas["status_student.csv"]["df"]
+    _sa = schemas["student_all.csv"]["df"]
+    _ss = schemas["status_student.csv"]["df"]
 
-    m = sa.merge(ss[["NIM", "no_whatsapp"]], on="NIM")
-    normalized_sa = m["hp"].str.replace(r"^0", "", regex=True)
-    normalized_ss = m["no_whatsapp"].str.strip()
+    _m = _sa.merge(_ss[["NIM", "no_whatsapp"]], on="NIM")
+    normalized_sa = _m["hp"].str.replace(r"^0", "", regex=True)
+    normalized_ss = _m["no_whatsapp"].str.strip()
     phone_mismatch = int((normalized_sa != normalized_ss).sum())
 
     mo.md(
@@ -1164,13 +1614,21 @@ def _(mo, schemas):
     return
 
 
+
+
+
+
+
+
+
+
 @app.cell
 def _(mo, schemas):
-    ss = schemas["status_student.csv"]["df"]
-    ts = schemas["tracking_student.csv"]["df"]
+    _ss = schemas["status_student.csv"]["df"]
+    _ts = schemas["tracking_student.csv"]["df"]
 
-    placed_in_ss = set(ss[ss["ketersediaan"] == "Placed"]["NIM"])
-    placed_in_ts = set(ts[ts["rejection"] == "Placement"]["NIM"])
+    placed_in_ss = set(_ss[_ss["ketersediaan"] == "Placed"]["NIM"])
+    placed_in_ts = set(_ts[_ts["rejection"] == "Placement"]["NIM"])
 
     ss_only = placed_in_ss - placed_in_ts
     ts_only = placed_in_ts - placed_in_ss
@@ -1197,9 +1655,17 @@ def _(mo, schemas):
             - Record-keeping lag between tables
             """
         ),
-        kind="warn",
+        _kind="warn",
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -1213,6 +1679,14 @@ def _(mo):
         """
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -1312,9 +1786,17 @@ def _(mo):
 
     mo.ui.table(
         sorted(findings, key=lambda f: {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "OK": 3}[f["Severity"]]),
-        label="Consolidated findings — data cleaning issues ranked by severity",
+        _label="Consolidated findings — data cleaning issues ranked by severity",
     )
     return
+
+
+
+
+
+
+
+
 
 
 @app.cell
@@ -1334,7 +1816,7 @@ def _(mo):
             Remaining issues (garbage `list_nim`, `renumerasi`/`durasi` text values) are low-volume and can be handled in the dashboard layer.
             """
         ),
-        kind="neutral",
+        _kind="neutral",
     )
     return
 

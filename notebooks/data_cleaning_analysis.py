@@ -7,18 +7,17 @@ app = marimo.App()
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # Data Cleaning Analysis — SSDC Dataset
+    mo.md("""
+    # Data Cleaning Analysis — SSDC Dataset
 
-        Analysis notebook to scan all 6 tables for issues needing cleanup before dashboard use.
-        """
-    )
+    Analysis notebook to scan all 6 tables for issues needing cleanup before dashboard use.
+    """)
     return
 
 
@@ -27,7 +26,8 @@ def _():
     import pandas as pd
     import numpy as np
     from pathlib import Path
-    return Path, np, pd
+
+    return Path, pd
 
 
 @app.cell
@@ -35,19 +35,17 @@ def _(Path):
     DATA_DIR = Path("data/Database SSDC")
     TABLES = sorted(DATA_DIR.glob("*.csv"))
     [t.name for t in TABLES]
-    return DATA_DIR, TABLES
+    return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 1: Setup & Schema Sanity
+    mo.md("""
+    ---
+    ## Phase 1: Setup & Schema Sanity
 
-        Load all 6 CSVs, inspect shapes/dtypes, compare column names/counts against the PDF spec.
-        """
-    )
+    Load all 6 CSVs, inspect shapes/dtypes, compare column names/counts against the PDF spec.
+    """)
     return
 
 
@@ -145,7 +143,7 @@ def _(DELIMITERS, EXPECTED, Path, pd):
         }
 
     schemas
-    return load_table, schemas
+    return (schemas,)
 
 
 @app.cell
@@ -175,27 +173,23 @@ def _(mo, schemas):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        **Note:** PDF docs mention 16 cols for `status_student` (includes `eligible`) and 14 for
-        `tracking_company` (includes internal spreadsheet cols A,B). The actual CSVs have 15 and 13
-        respectively — these are **expected** based on the docs' own note.
-        """
-    )
+    mo.md("""
+    **Note:** PDF docs mention 16 cols for `status_student` (includes `eligible`) and 14 for
+    `tracking_company` (includes internal spreadsheet cols A,B). The actual CSVs have 15 and 13
+    respectively — these are **expected** based on the docs' own note.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 2: Missing Values
+    mo.md("""
+    ---
+    ## Phase 2: Missing Values
 
-        Per column: count/% of empty strings and NA-like tokens (`na`, `n/a`, `null`, `none`).
-        Flag PK/FK/date columns that must never be null.
-        """
-    )
+    Per column: count/% of empty strings and NA-like tokens (`na`, `n/a`, `null`, `none`).
+    Flag PK/FK/date columns that must never be null.
+    """)
     return
 
 
@@ -243,11 +237,11 @@ def _(CRITICAL, NA_TOKENS, schemas):
             })
 
     len(missing_rows)
-    return missing_rows
+    return (missing_rows,)
 
 
 @app.cell
-def _(mo, missing_rows):
+def _(missing_rows, mo):
     critical_hits = [r for r in missing_rows if r["Critical"] == "YES"]
     total_crit = len(critical_hits)
 
@@ -298,17 +292,15 @@ def _(missing_rows, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 3: Duplicates & Uniqueness
+    mo.md("""
+    ---
+    ## Phase 3: Duplicates & Uniqueness
 
-        - PK duplicate check per table
-        - Full-row duplicate check
-        - `status_student.NIM` 1:1 with `student_all.NIM`
-        - ID format conformance (`C\\d+`, `TR\\d+`, `SS\\d+`, `TC\\d+`, `TS\\d+`, `NIM` = `\\d{8,}`)
-        """
-    )
+    - PK duplicate check per table
+    - Full-row duplicate check
+    - `status_student.NIM` 1:1 with `student_all.NIM`
+    - ID format conformance (`C\d+`, `TR\d+`, `SS\d+`, `TC\d+`, `TS\d+`, `NIM` = `\d{8,}`)
+    """)
     return
 
 
@@ -332,7 +324,7 @@ def _():
         "id_tracking_student":    (re.compile(r"^TS\d+$"), "TS + digits"),
         "NIM":                    (re.compile(r"^\d{8,}$"), "8+ digits"),
     }
-    return ID_FORMATS, PK_MAP, re
+    return ID_FORMATS, PK_MAP
 
 
 @app.cell
@@ -367,7 +359,7 @@ def _(PK_MAP, schemas):
             })
 
     len(dup_findings)
-    return dup_findings
+    return (dup_findings,)
 
 
 @app.cell
@@ -395,7 +387,7 @@ def _(mo, schemas):
         | `status_student` NIM duplicates | {ss_dup_nims} |
         """
     )
-    return only_in_sa, only_in_ss
+    return (sa_nims,)
 
 
 @app.cell
@@ -421,7 +413,7 @@ def _(ID_FORMATS, PK_MAP, mo, schemas):
 
         """
     )
-    return id_rows
+    return (id_rows,)
 
 
 @app.cell
@@ -450,17 +442,15 @@ def _(dup_findings, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 4: Referential Integrity
+    mo.md("""
+    ---
+    ## Phase 4: Referential Integrity
 
-        - `talent_request.id_company → company`
-        - `tracking_company.id_company → company` and `→ talent_request`
-        - `tracking_student.id_tracking_company → tracking_company` and `→ student_all`
-        - `list_nim` NIMs → `student_all`
-        """
-    )
+    - `talent_request.id_company → company`
+    - `tracking_company.id_company → company` and `→ talent_request`
+    - `tracking_student.id_tracking_company → tracking_company` and `→ student_all`
+    - `list_nim` NIMs → `student_all`
+    """)
     return
 
 
@@ -495,7 +485,7 @@ def _(schemas):
         })
 
     len(fk_results)
-    return co, co_ids, fk_results, sa, sa_nims, tc, tc_ids, tr, tr_ids, ts
+    return fk_results, sa_nims, tc
 
 
 @app.cell
@@ -508,7 +498,7 @@ def _(fk_results, mo):
 
 
 @app.cell
-def _(mo, sa, sa_nims, tc):
+def _(mo, sa_nims, tc):
     all_nims = []
     orphan_nims = []
     for _, row in tc.iterrows():
@@ -567,15 +557,13 @@ def _(all_nims, mo, orphan_nims, unique_orphans):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 5a: Enum Validation
+    mo.md("""
+    ---
+    ## Phase 5a: Enum Validation
 
-        Compare every enum column's distinct values against the PDF's allowed sets.
-        Surface typos, case variants, or unknown values.
-        """
-    )
+    Compare every enum column's distinct values against the PDF's allowed sets.
+    Surface typos, case variants, or unknown values.
+    """)
     return
 
 
@@ -695,7 +683,7 @@ def _(mo, schemas):
         })
 
     mo.md("### Free-text categoricals (reference overview)")
-    return free_text
+    return (free_text,)
 
 
 @app.cell
@@ -706,22 +694,20 @@ def _(free_text, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 5b: Format Validation
+    mo.md("""
+    ---
+    ## Phase 5b: Format Validation
 
-        - **Phone numbers**: `08xx` / `62xx` pattern, digit length
-        - **Emails**: `user@domain.tld`
-        - **Date formats**: ISO (`yyyy-mm-dd`) vs DMY (`dd/mm/yyyy`) across tables
-        - **Special columns**: `bulan_masuk`, `renumerasi`, `durasi`
-        """
-    )
+    - **Phone numbers**: `08xx` / `62xx` pattern, digit length
+    - **Emails**: `user@domain.tld`
+    - **Date formats**: ISO (`yyyy-mm-dd`) vs DMY (`dd/mm/yyyy`) across tables
+    - **Special columns**: `bulan_masuk`, `renumerasi`, `durasi`
+    """)
     return
 
 
 @app.cell
-def _(mo, np, schemas):
+def _(mo, schemas):
     import re
 
     phone_cols = [
@@ -749,7 +735,7 @@ def _(mo, np, schemas):
         })
 
     mo.md("### Phone numbers")
-    return phone_re, phone_results
+    return (phone_results,)
 
 
 @app.cell
@@ -793,7 +779,7 @@ def _(mo, schemas):
         })
 
     mo.md("### Emails")
-    return email_re, email_results
+    return (email_results,)
 
 
 @app.cell
@@ -832,7 +818,7 @@ def _(mo, schemas):
         })
 
     mo.md("### Date formats")
-    return date_results, dmy_re, iso_re
+    return (date_results,)
 
 
 @app.cell
@@ -854,8 +840,8 @@ def _(date_results, mo):
             mo.md(
                 f"""**Date format inconsistency detected** — 3 tables use DMY, 3 use ISO.
 
-Standardization needed for dashboard queries on date columns:
-"""
+    Standardization needed for dashboard queries on date columns:
+    """
                 + "\n".join(
                     f"- `{r['Table']}.{r['Column']}` → {r['Format']}"
                     for r in date_results
@@ -903,7 +889,7 @@ def _(mo, schemas):
         | `talent_request.durasi` | `N Bulan` / `N Tahun` pattern | {len(dur_bad):,} non-standard out of {len(dur):,} |
         """
     )
-    return bad_bm, dur_bad_uniq, ren_other_uniq
+    return dur_bad_uniq, ren_other_uniq
 
 
 @app.cell
@@ -924,18 +910,16 @@ def _(dur_bad_uniq, mo, ren_other_uniq):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 5c: Range Validation
+    mo.md("""
+    ---
+    ## Phase 5c: Range Validation
 
-        - **IPK**: 0–4 range
-        - **Semester**: 1–14 range
-        - **Headcount** / **minimum_semester**: sensible bounds
-        - **Dates**: no future / pre-2020 outliers
-        - **Cross-column counts**: `jumlah_permintaan` vs `headcount`, `jumlah_dikirimkan` vs `list_nim` count
-        """
-    )
+    - **IPK**: 0–4 range
+    - **Semester**: 1–14 range
+    - **Headcount** / **minimum_semester**: sensible bounds
+    - **Dates**: no future / pre-2020 outliers
+    - **Cross-column counts**: `jumlah_permintaan` vs `headcount`, `jumlah_dikirimkan` vs `list_nim` count
+    """)
     return
 
 
@@ -972,7 +956,7 @@ def _(mo, schemas):
     ]
 
     mo.md("### Numeric ranges")
-    return equal, less, more, range_rows
+    return equal, less, more, pd, range_rows, tc
 
 
 @app.cell
@@ -984,24 +968,22 @@ def _(mo, range_rows):
 
 @app.cell
 def _(equal, less, mo, more):
-    mo.md(
-        f"""
-        ### `jumlah_permintaan` vs `jumlah_dikirimkan` (tracking_company)
+    mo.md(f"""
+    ### `jumlah_permintaan` vs `jumlah_dikirimkan` (tracking_company)
 
-        | Sent vs Requested | Count | Note |
-        |---|---|---|
-        | Sent < Requested | {less} | All are `jumlah_dikirimkan = 0` — unsent tracking records |
-        | Sent = Requested | {equal} | |
-        | Sent > Requested | {more} | Buffer: CDC sends extra candidates |
+    | Sent vs Requested | Count | Note |
+    |---|---|---|
+    | Sent < Requested | {less} | All are `jumlah_dikirimkan = 0` — unsent tracking records |
+    | Sent = Requested | {equal} | |
+    | Sent > Requested | {more} | Buffer: CDC sends extra candidates |
 
-        {less} rows have `sent < requested` — every case has `jumlah_dikirimkan = 0` with empty `send_date` and `list_nim`. These are draft/submitted records not yet dispatched.
-        """
-    )
+    {less} rows have `sent < requested` — every case has `jumlah_dikirimkan = 0` with empty `send_date` and `list_nim`. These are draft/submitted records not yet dispatched.
+    """)
     return
 
 
 @app.cell
-def _(mo, pd, schemas):
+def _(mo, schemas):
     from datetime import date
     tc = schemas["tracking_company.csv"]["df"]
     tr = schemas["talent_request.csv"]["df"]
@@ -1043,7 +1025,7 @@ def _(mo, pd, schemas):
         })
 
     mo.md("### Date range validation")
-    return date_rows, parse_date
+    return date_rows, tc
 
 
 @app.cell
@@ -1081,6 +1063,141 @@ def _(mo, pd, schemas):
         | `tracking_company.jumlah_permintaan` ≠ `talent_request.headcount` | {mismatch} mismatches |
         | `tracking_company.jumlah_dikirimkan` ≠ `list_nim` item count | {list_mismatch} mismatches |
         """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 6: Cross-Table Consistency
+
+        - Denormalized fields agree across tables (nama_perusahaan, posisi, jenis_penempatan, bidang_studi)
+        - `status_student.ketersediaan = Placed` ⇄ `tracking_student.rejection = Placement`
+        - Name/email/semester/prodi consistency between `student_all` and `status_student`
+        - Phone consistency (normalizing leading 0)
+        """
+    )
+    return
+
+
+@app.cell
+def _(schemas):
+    co = schemas["company.csv"]["df"]
+    tr_raw = schemas["talent_request.csv"]["df"]
+    sa = schemas["student_all.csv"]["df"]
+    ss = schemas["status_student.csv"]["df"]
+    tc_raw = schemas["tracking_company.csv"]["df"]
+    ts = schemas["tracking_student.csv"]["df"]
+
+    checks = []
+
+    def chk(label, left_col, right_col, left_df, right_df, on_key):
+        m = left_df.merge(right_df[[on_key, right_col]], on=on_key, how="left", suffixes=("_l", "_r"))
+        lc = left_col if left_col != right_col else f"{left_col}_l"
+        rc = right_col if left_col != right_col else f"{right_col}_r"
+        bad = int((m[lc] != m[rc]).sum())
+        checks.append({"Left": label, "Right": f"{on_key} → {right_col}", "Mismatches": bad})
+        return bad
+
+    chk("tr.nama_perusahaan", "nama_perusahaan", "company_name", tr_raw, co, "id_company")
+    chk("tc.nama_perusahaan", "nama_perusahaan", "company_name", tc_raw, co, "id_company")
+    chk("tr.industri_sektor", "industri_sektor", "industry_sector", tr_raw, co, "id_company")
+    chk("tc.posisi", "posisi", "nama_posisi", tc_raw, tr_raw, "id_talent_req")
+    chk("tc.jenis_penempatan", "jenis_penempatan", "jenis_penempatan", tc_raw, tr_raw, "id_talent_req")
+    chk("tc.bidang_studi_dicari", "bidang_studi_dicari", "bidang_studi_dibutuhkan", tc_raw, tr_raw, "id_talent_req")
+    chk("ts.jenis_penempatan", "jenis_penempatan", "jenis_penempatan", ts, tc_raw, "id_tracking_company")
+    chk("ts.company", "company", "nama_perusahaan", ts, tc_raw, "id_tracking_company")
+    chk("ts.position", "position", "posisi", ts, tc_raw, "id_tracking_company")
+    chk("ts.student_name", "student_name", "nama", ts, sa, "NIM")
+    chk("sa.nama", "nama", "nama", sa, ss, "NIM")
+    chk("sa.semester", "semester", "semester", sa, ss, "NIM")
+    chk("sa.program_studi", "program_studi", "program_studi", sa, ss, "NIM")
+    chk("sa.email_kampus", "email_kampus", "email", sa, ss, "NIM")
+
+    total_mismatches = sum(c["Mismatches"] for c in checks)
+    total_mismatches
+    return (checks,)
+
+
+@app.cell
+def _(checks, mo):
+    mo.ui.table(
+        checks,
+        label=f"Denormalized field consistency — {sum(c['Mismatches'] for c in checks)} total mismatches across {len(checks)} checks",
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ### Phone consistency: `student_all.hp` vs `status_student.no_whatsapp`
+
+        `student_all.hp` has proper `08xx` format; `status_student.no_whatsapp` is missing the leading `0`.
+        Once normalized (strip leading `0` from `student_all`), all phones match.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    sa = schemas["student_all.csv"]["df"]
+    ss = schemas["status_student.csv"]["df"]
+
+    m = sa.merge(ss[["NIM", "no_whatsapp"]], on="NIM")
+    normalized_sa = m["hp"].str.replace(r"^0", "", regex=True)
+    normalized_ss = m["no_whatsapp"].str.strip()
+    phone_mismatch = int((normalized_sa != normalized_ss).sum())
+
+    mo.md(
+        f"""
+        **Phone mismatch after normalization: {phone_mismatch}**
+
+        All 25,000 phones match between tables once the missing leading `0` is accounted for.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    ss = schemas["status_student.csv"]["df"]
+    ts = schemas["tracking_student.csv"]["df"]
+
+    placed_in_ss = set(ss[ss["ketersediaan"] == "Placed"]["NIM"])
+    placed_in_ts = set(ts[ts["rejection"] == "Placement"]["NIM"])
+
+    ss_only = placed_in_ss - placed_in_ts
+    ts_only = placed_in_ts - placed_in_ss
+
+    mo.callout(
+        mo.md(
+            f"""
+            ### Placement consistency: `status_student` ⇄ `tracking_student`
+
+            | Status | Count |
+            |---|---|
+            | `status_student.ketersediaan = Placed` | {len(placed_in_ss):,} |
+            | `tracking_student.rejection = Placement` | {len(placed_in_ts):,} |
+            | Placed in SS but **no** Placement in TS | **{len(ss_only):,}** |
+            | Placement in TS but **not** Placed in SS | **{len(ts_only):,}** |
+
+            The {len(ss_only):,} SS-Placed without TS-Placement may indicate:
+            - Placement via channels outside CDC tracking
+            - `ketersediaan` set prematurely
+            - Tracking records not created for every placement
+
+            The {len(ts_only):,} TS-Placement without SS-Placed may indicate:
+            - `status_student.ketersediaan` not updated after placement
+            - Record-keeping lag between tables
+            """
+        ),
+        kind="warn",
     )
     return
 

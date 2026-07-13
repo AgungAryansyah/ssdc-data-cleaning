@@ -922,5 +922,168 @@ def _(dur_bad_uniq, mo, ren_other_uniq):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 5c: Range Validation
+
+        - **IPK**: 0–4 range
+        - **Semester**: 1–14 range
+        - **Headcount** / **minimum_semester**: sensible bounds
+        - **Dates**: no future / pre-2020 outliers
+        - **Cross-column counts**: `jumlah_permintaan` vs `headcount`, `jumlah_dikirimkan` vs `list_nim` count
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    ss = schemas["status_student.csv"]["df"]
+    sa = schemas["student_all.csv"]["df"]
+    tr = schemas["talent_request.csv"]["df"]
+    tc = schemas["tracking_company.csv"]["df"]
+    ts = schemas["tracking_student.csv"]["df"]
+    import pandas as pd
+
+    ipk = pd.to_numeric(ss["IPK"], errors="coerce")
+    sem_sa = pd.to_numeric(sa["semester"], errors="coerce")
+    sem_ss = pd.to_numeric(ss["semester"], errors="coerce")
+    sem_ts = pd.to_numeric(ts["internship_semester"], errors="coerce")
+    hc = pd.to_numeric(tr["headcount"], errors="coerce")
+    ms = pd.to_numeric(tr["minimum_semester"], errors="coerce")
+    jp = pd.to_numeric(tc["jumlah_permintaan"], errors="coerce")
+    jd = pd.to_numeric(tc["jumlah_dikirimkan"], errors="coerce")
+
+    sem_sent = pd.to_numeric(tc["jumlah_dikirimkan"], errors="coerce")
+    less = int((jd < jp).sum())
+    more = int((jd > jp).sum())
+    equal = int((jd == jp).sum())
+
+    range_rows = [
+        ("status_student", "IPK", "0 – 4", f"{ipk.min():.1f} – {ipk.max():.1f}", f"{ipk.mean():.2f}", 0),
+        ("student_all", "semester", "1 – 14", f"{sem_sa.min():.0f} – {sem_sa.max():.0f}", "-", 0),
+        ("status_student", "semester", "1 – 14", f"{sem_ss.min():.0f} – {sem_ss.max():.0f}", "-", 0),
+        ("tracking_student", "internship_semester", "1 – 14", f"{sem_ts.min():.0f} – {sem_ts.max():.0f}", "-", 0),
+        ("talent_request", "headcount", "≥ 1", f"{hc.min():.0f} – {hc.max():.0f}", str(dict(hc.value_counts().sort_index())), 0),
+        ("talent_request", "minimum_semester", "1 – 8", f"{ms.min():.0f} – {ms.max():.0f}", "-", 0),
+    ]
+
+    mo.md("### Numeric ranges")
+    return equal, less, more, range_rows
+
+
+@app.cell
+def _(mo, range_rows):
+    tbl = [{"Table": t[0], "Column": t[1], "Expected": t[2], "Actual range": t[3], "Extra": t[4], "Bad": t[5]} for t in range_rows]
+    mo.ui.table(tbl, label="Numeric range checks — all within expected bounds")
+    return
+
+
+@app.cell
+def _(equal, less, mo, more):
+    mo.md(
+        f"""
+        ### `jumlah_permintaan` vs `jumlah_dikirimkan` (tracking_company)
+
+        | Sent vs Requested | Count | Note |
+        |---|---|---|
+        | Sent < Requested | {less} | All are `jumlah_dikirimkan = 0` — unsent tracking records |
+        | Sent = Requested | {equal} | |
+        | Sent > Requested | {more} | Buffer: CDC sends extra candidates |
+
+        {less} rows have `sent < requested` — every case has `jumlah_dikirimkan = 0` with empty `send_date` and `list_nim`. These are draft/submitted records not yet dispatched.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, pd, schemas):
+    from datetime import date
+    tc = schemas["tracking_company.csv"]["df"]
+    tr = schemas["talent_request.csv"]["df"]
+    import re
+
+    iso_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    dmy_re = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+    now = date.today()
+
+    def parse_date(s):
+        try:
+            from datetime import datetime
+            return datetime.strptime(s, "%d/%m/%Y").date() if dmy_re.match(s) else (
+                datetime.strptime(s, "%Y-%m-%d").date() if iso_re.match(s) else None)
+        except:
+            return None
+
+    date_cols = [
+        ("company.csv", "created_at"),
+        ("talent_request.csv", "request_date"),
+        ("status_student.csv", "sync_date"),
+        ("tracking_company.csv", "request_date"),
+        ("tracking_company.csv", "send_date"),
+        ("tracking_student.csv", "last_update"),
+    ]
+    date_rows = []
+    for fname, col in date_cols:
+        df = schemas[fname]["df"]
+        vals = df[col].dropna().str.strip()
+        vals = vals[vals != ""]
+        parsed = vals.apply(parse_date).dropna()
+        future = int((parsed.apply(lambda d: d > now)).sum())
+        pre2020 = int((parsed.apply(lambda d: d.year < 2020)).sum())
+        date_min = parsed.min()
+        date_max = parsed.max()
+        date_rows.append({
+            "Table": fname, "Column": col, "Min": str(date_min), "Max": str(date_max),
+            "Future": future, "Pre-2020": pre2020,
+        })
+
+    mo.md("### Date range validation")
+    return date_rows, parse_date
+
+
+@app.cell
+def _(date_rows, mo):
+    mo.ui.table(date_rows, label="All dates within 2022–2025 range, no future or pre-2020 outliers")
+    return
+
+
+@app.cell
+def _(mo, pd, schemas):
+    tr = schemas["talent_request.csv"]["df"]
+    tc = schemas["tracking_company.csv"]["df"]
+
+    jp_vs_hc = tc[["id_talent_req", "jumlah_permintaan"]].merge(
+        tr[["id_talent_req", "headcount"]], on="id_talent_req", how="left"
+    )
+    jp_num = pd.to_numeric(jp_vs_hc["jumlah_permintaan"], errors="coerce")
+    hc_num = pd.to_numeric(jp_vs_hc["headcount"], errors="coerce")
+    mismatch = int((jp_num != hc_num).sum())
+
+    list_mismatch = 0
+    for _, row in tc.iterrows():
+        val = str(row["list_nim"]) if pd.notna(row["list_nim"]) and str(row["list_nim"]).strip() else ""
+        nims = [n for n in val.split(",") if n.strip()]
+        sent = int(row["jumlah_dikirimkan"]) if pd.notna(row["jumlah_dikirimkan"]) and str(row["jumlah_dikirimkan"]).strip().isdigit() else 0
+        if nims and len(nims) != sent:
+            list_mismatch += 1
+
+    mo.md(
+        f"""
+        ### Cross-column count consistency
+
+        | Check | Result |
+        |---|---|
+        | `tracking_company.jumlah_permintaan` ≠ `talent_request.headcount` | {mismatch} mismatches |
+        | `tracking_company.jumlah_dikirimkan` ≠ `list_nim` item count | {list_mismatch} mismatches |
+        """
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

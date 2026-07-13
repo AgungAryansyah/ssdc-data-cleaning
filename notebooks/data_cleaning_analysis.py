@@ -565,5 +565,144 @@ def _(all_nims, mo, orphan_nims, unique_orphans):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 5a: Enum Validation
+
+        Compare every enum column's distinct values against the PDF's allowed sets.
+        Surface typos, case variants, or unknown values.
+        """
+    )
+    return
+
+
+@app.cell
+def _():
+    ENUM_SPECS = {
+        ("company.csv", "company_type"): {"Startup", "UMKM", "Corporate", "BUMN", "NGO", "Pemerintah"},
+        ("company.csv", "skala_perusahaan"): {"Lokal", "Nasional", "Multinasional"},
+        ("talent_request.csv", "jenis_penempatan"): {"Magang", "Part-time", "Full-time"},
+        ("talent_request.csv", "working_arrangement"): {"WFH", "WFO", "Hybrid"},
+        ("talent_request.csv", "sumber_baris_form"): {"Google Form", "Input Manual", "Email", "WhatsApp"},
+        ("student_all.csv", "jenis_penempatan_diminati"): {"Magang", "Part-time", "Full-time"},
+        ("status_student.csv", "status"): {"Active", "Inactive", "Cuti", "Lulus"},
+        ("status_student.csv", "ketersediaan"): {"Available", "Placed", "Tidak Aktif"},
+        ("status_student.csv", "CV"): {"Ada", "Tidak Ada"},
+        ("status_student.csv", "portofolio"): {"Ada", "Tidak Ada"},
+        ("tracking_company.csv", "jenis_penempatan"): {"Magang", "Part-time", "Full-time"},
+        ("tracking_company.csv", "progress"): {"Draft", "Submitted", "On Review", "Shortlisted", "Closed"},
+        ("tracking_student.csv", "jenis_penempatan"): {"Magang", "Part-time", "Full-time"},
+        ("tracking_student.csv", "progress_student"): {
+            "Selecting Student by Company", "Study Case", "CDC Briefing Student",
+            "Interview User", "Final Interview", "Placement", "FU 1", "FU 2", "FU 3",
+            "Ghosting", "Rejected", "Finish",
+        },
+        ("tracking_student.csv", "rejection"): {
+            "On Progress", "Placement", "Rejection Screening CV",
+            "Rejection Interview User", "Rejection Study Case",
+            "Rejection Final Interview", "Ghosting",
+        },
+    }
+    return (ENUM_SPECS,)
+
+
+@app.cell
+def _(ENUM_SPECS, schemas):
+    enum_results = []
+    for (fname, col), allowed in sorted(ENUM_SPECS):
+        df = schemas[fname]["df"]
+        actual = set(df[col].dropna().str.strip())
+        unknown = actual - allowed
+        unknown_counts = {v: int((df[col] == v).sum()) for v in unknown} if unknown else {}
+
+        enum_results.append({
+            "Table": fname,
+            "Column": col,
+            "Expected count": len(allowed),
+            "Actual distinct": len(actual),
+            "Unknown": len(unknown),
+            "Unknown values": sorted(unknown) if unknown else None,
+            "Unknown counts": unknown_counts if unknown else None,
+        })
+
+    violations = [r for r in enum_results if r["Unknown"] > 0]
+    len(violations)
+    return enum_results, violations
+
+
+@app.cell
+def _(enum_results, mo):
+    summary = [
+        {
+            "Table": r["Table"],
+            "Column": r["Column"],
+            "Allowed": r["Expected count"],
+            "Found": r["Actual distinct"],
+            "Unknown": r["Unknown"],
+            "Status": "OK" if r["Unknown"] == 0 else f"{r['Unknown']} unknown",
+        }
+        for r in enum_results
+    ]
+    mo.ui.table(summary, label=f"Enum validation — {len(summary)} columns checked")
+    return
+
+
+@app.cell
+def _(mo, violations):
+    if violations:
+        for v in violations:
+            mo.callout(
+                mo.md(
+                    f"**{v['Table']}.{v['Column']}** — {v['Unknown']} unknown: "
+                    + ", ".join(f"`{val}`" for val in v["Unknown values"])
+                ),
+                kind="warn",
+            )
+    else:
+        mo.callout(
+            mo.md("All **15 enum columns** conform 100% to the PDF specification. No unknown values, typos, or case variants found."),
+            kind="neutral",
+        )
+    return
+
+
+@app.cell
+def _(mo, schemas):
+    free_text_cols = [
+        ("company.csv", "industry_sector"),
+        ("company.csv", "kota"),
+        ("talent_request.csv", "industri_sektor"),
+        ("student_all.csv", "program_studi"),
+        ("student_all.csv", "bidang_minat"),
+        ("status_student.csv", "program_studi"),
+        ("status_student.csv", "domisili"),
+        ("tracking_company.csv", "bidang_studi_dicari"),
+    ]
+
+    free_text = []
+    for fname, col in free_text_cols:
+        df = schemas[fname]["df"]
+        vals = df[col].dropna().str.strip()
+        uniq = sorted(vals.unique())
+        free_text.append({
+            "Table": fname,
+            "Column": col,
+            "Distinct": len(uniq),
+            "Sample": ", ".join(uniq[:10]) if len(uniq) > 10 else ", ".join(uniq),
+        })
+
+    mo.md("### Free-text categoricals (reference overview)")
+    return free_text
+
+
+@app.cell
+def _(free_text, mo):
+    mo.ui.table(free_text, label="Free-text categorical columns — distinct value counts")
+    return
+
+
 if __name__ == "__main__":
     app.run()

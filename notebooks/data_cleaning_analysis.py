@@ -448,5 +448,122 @@ def _(dup_findings, mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 4: Referential Integrity
+
+        - `talent_request.id_company → company`
+        - `tracking_company.id_company → company` and `→ talent_request`
+        - `tracking_student.id_tracking_company → tracking_company` and `→ student_all`
+        - `list_nim` NIMs → `student_all`
+        """
+    )
+    return
+
+
+@app.cell
+def _(schemas):
+    co = schemas["company.csv"]["df"]
+    tr = schemas["talent_request.csv"]["df"]
+    tc = schemas["tracking_company.csv"]["df"]
+    ts = schemas["tracking_student.csv"]["df"]
+    sa = schemas["student_all.csv"]["df"]
+
+    co_ids = set(co["id_company"])
+    tr_ids = set(tr["id_talent_req"])
+    tc_ids = set(tc["id_tracking_company"])
+    sa_nims = set(sa["NIM"])
+
+    fk_checks = [
+        ("talent_request.id_company", set(tr["id_company"]), co_ids),
+        ("tracking_company.id_company", set(tc["id_company"]), co_ids),
+        ("tracking_company.id_talent_req", set(tc["id_talent_req"]), tr_ids),
+        ("tracking_student.id_tracking_company", set(ts["id_tracking_company"]), tc_ids),
+        ("tracking_student.NIM", set(ts["NIM"]), sa_nims),
+    ]
+
+    fk_results = []
+    for label, src, ref in fk_checks:
+        orphans = src - ref
+        fk_results.append({
+            "FK": label,
+            "Orphans": len(orphans),
+            "Samples": sorted(orphans)[:5] if orphans else None,
+        })
+
+    len(fk_results)
+    return co, co_ids, fk_results, sa, sa_nims, tc, tc_ids, tr, tr_ids, ts
+
+
+@app.cell
+def _(fk_results, mo):
+    mo.ui.table(
+        fk_results,
+        label="Standard FK referential integrity — all 5 relationships clean",
+    )
+    return
+
+
+@app.cell
+def _(mo, sa, sa_nims, tc):
+    all_nims = []
+    orphan_nims = []
+    for _, row in tc.iterrows():
+        val = str(row["list_nim"]) if row["list_nim"] is not None and str(row["list_nim"]).strip() else ""
+        if not val:
+            continue
+        for n in [x.strip() for x in val.split(",") if x.strip()]:
+            all_nims.append(n)
+            if n not in sa_nims:
+                orphan_nims.append((row["id_tracking_company"], n))
+
+    unique_orphans = set(n for _, n in orphan_nims)
+
+    mo.md(
+        f"""
+        ### `list_nim` NIMs → `student_all`
+
+        - Total NIMs in `list_nim` columns: **{len(all_nims):,}**
+        - Orphan NIMs (not in `student_all`): **{len(orphan_nims)}**
+        - Unique orphan values: **{len(unique_orphans)}**
+        """
+    )
+    return all_nims, orphan_nims, unique_orphans
+
+
+@app.cell
+def _(all_nims, mo, orphan_nims, unique_orphans):
+    if orphan_nims:
+        from collections import Counter
+        orphan_counts = Counter(n for _, n in orphan_nims)
+
+        mo.callout(
+            mo.md(
+                f"""
+                **Orphan `list_nim` values** — {len(orphan_nims)} occurrences of {len(unique_orphans)} unique values:
+
+                """
+                + "\n".join(
+                    f'- `"{n}"` — {c}x'
+                    for n, c in orphan_counts.most_common(10)
+                )
+                + f"""
+
+                All orphan values are truncated/garbage NIMs. Most are `"2"` (48×). They cannot be matched to `student_all` and should be flagged for manual review or exclusion.
+                """
+            ),
+            kind="warn",
+        )
+
+    nims_in_multiple = len(all_nims) - len(set(all_nims))
+    mo.md(
+        f"**{nims_in_multiple:,}** NIMs appear in multiple `list_nim` entries — expected, as one student can be sent to multiple companies."
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

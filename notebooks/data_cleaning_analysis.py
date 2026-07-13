@@ -1,15 +1,7 @@
 import marimo
 
 __generated_with = "0.23.14"
-app = marimo.App()
-
-
-
-
-
-
-
-
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -17,14 +9,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -37,14 +21,6 @@ def _(mo):
     return
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _():
     import pandas as pd
@@ -54,28 +30,12 @@ def _():
     return Path, pd
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(Path):
     DATA_DIR = Path("data/Database SSDC")
     TABLES = sorted(DATA_DIR.glob("*.csv"))
     [_t.name for _t in TABLES]
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -87,14 +47,6 @@ def _(mo):
     Load all 6 CSVs, inspect shapes/dtypes, compare column names/counts against the PDF spec.
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -158,14 +110,6 @@ def _():
     return DELIMITERS, EXPECTED
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(DELIMITERS, EXPECTED, Path, pd):
     def load_table(path):
@@ -202,14 +146,6 @@ def _(DELIMITERS, EXPECTED, Path, pd):
     return (schemas,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(mo, schemas):
     rows = []
@@ -230,17 +166,9 @@ def _(mo, schemas):
 
     mo.ui.table(
         rows,
-        _label=f"Schema summary — 6 tables loaded, {sum(_s['rows'] for _s in schemas.values()):,} total rows",
+        label=f"Schema summary — 6 tables loaded, {sum(_s['rows'] for _s in schemas.values()):,} total rows",
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -253,14 +181,6 @@ def _(mo):
     return
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(mo):
     mo.md("""
@@ -271,14 +191,6 @@ def _(mo):
     Flag PK/FK/date columns that must never be null.
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -294,14 +206,6 @@ def _():
 
     NA_TOKENS = {"na", "n/a", "null", "none", "nan"}
     return CRITICAL, NA_TOKENS
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -336,14 +240,6 @@ def _(CRITICAL, NA_TOKENS, schemas):
     return (missing_rows,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(missing_rows, mo):
     _critical_hits = [_r for _r in missing_rows if _r["Critical"] == "YES"]
@@ -360,33 +256,17 @@ def _(missing_rows, mo):
     return
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(missing_rows, mo):
     if missing_rows:
         mo.ui.table(
             sorted(missing_rows, key=lambda r: (-r["Missing"], r["Table"], r["Column"])),
             selection=None,
-            _label="Missing values per column (sorted by count descending)",
+            label="Missing values per column (sorted by count descending)",
         )
     else:
         mo.md("No missing values found in any column.")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -400,22 +280,14 @@ def _(missing_rows, mo):
                     for _r in sorted(_critical_hits, key=lambda _r: (-_r["Missing"], _r["Table"]))
                 )
             ),
-            _kind="warn",
+            kind="warn",
         )
     else:
         mo.callout(
             mo.md("All critical columns (PKs, FKs, dates) have no missing values."),
-            _kind="neutral",
+            kind="neutral",
         )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -430,14 +302,6 @@ def _(mo):
     - ID format conformance (`C\d+`, `TR\d+`, `SS\d+`, `TC\d+`, `TS\d+`, `NIM` = `\d{8,}`)
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -460,15 +324,7 @@ def _():
         "id_tracking_student":    (re.compile(r"^TS\d+$"), "TS + digits"),
         "NIM":                    (re.compile(r"^\d{8,}$"), "8+ digits"),
     }
-    return ID_FORMATS, PK_MAP
-
-
-
-
-
-
-
-
+    return ID_FORMATS, PK_MAP, re
 
 
 @app.cell
@@ -506,14 +362,6 @@ def _(PK_MAP, schemas):
     return (dup_findings,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(mo, schemas):
     _sa = schemas["student_all.csv"]["df"]
@@ -539,15 +387,7 @@ def _(mo, schemas):
         | `status_student` NIM duplicates | {ss_dup_nims} |
         """
     )
-    return 
-
-
-
-
-
-
-
-
+    return
 
 
 @app.cell
@@ -576,29 +416,13 @@ def _(ID_FORMATS, PK_MAP, mo, schemas):
     return (id_rows,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(id_rows, mo):
     mo.ui.table(
         id_rows,
-        _label="ID format check — all IDs match their expected pattern",
+        label="ID format check — all IDs match their expected pattern",
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -606,22 +430,14 @@ def _(dup_findings, mo):
     if dup_findings:
         mo.callout(
             mo.ui.table(dup_findings, label="Duplicate findings"),
-            _kind="warn",
+            kind="warn",
         )
     else:
         mo.callout(
             mo.md("No duplicate records found — all PKs unique, no full-row duplicates."),
-            _kind="neutral",
+            kind="neutral",
         )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -636,14 +452,6 @@ def _(mo):
     - `list_nim` NIMs → `student_all`
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -680,29 +488,13 @@ def _(schemas):
     return fk_results, sa_nims, tc
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(fk_results, mo):
     mo.ui.table(
         fk_results,
-        _label="Standard FK referential integrity — all 5 relationships clean",
+        label="Standard FK referential integrity — all 5 relationships clean",
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -732,14 +524,6 @@ def _(mo, sa_nims, tc):
     return all_nims, orphan_nims, unique_orphans
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(all_nims, mo, orphan_nims, unique_orphans):
     if orphan_nims:
@@ -761,7 +545,7 @@ def _(all_nims, mo, orphan_nims, unique_orphans):
                 All orphan values are truncated/garbage NIMs. Most are `"2"` (48×). They cannot be matched to `student_all` and should be flagged for manual review or exclusion.
                 """
             ),
-            _kind="warn",
+            kind="warn",
         )
 
     nims_in_multiple = len(all_nims) - len(set(all_nims))
@@ -769,14 +553,6 @@ def _(all_nims, mo, orphan_nims, unique_orphans):
         f"**{nims_in_multiple:,}** NIMs appear in multiple `list_nim` entries — expected, as one student can be sent to multiple companies."
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -789,14 +565,6 @@ def _(mo):
     Surface typos, case variants, or unknown values.
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -829,18 +597,10 @@ def _():
     return (ENUM_SPECS,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(ENUM_SPECS, schemas):
     enum_results = []
-    for (_fname, col), allowed in sorted(ENUM_SPECS):
+    for (_fname, col), allowed in sorted(ENUM_SPECS.items()):
         _df = schemas[_fname]["df"]
         actual = set(_df[col].dropna().str.strip())
         unknown = actual - allowed
@@ -861,14 +621,6 @@ def _(ENUM_SPECS, schemas):
     return enum_results, violations
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(enum_results, mo):
     summary = [
@@ -886,14 +638,6 @@ def _(enum_results, mo):
     return
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(mo, violations):
     if violations:
@@ -908,17 +652,9 @@ def _(mo, violations):
     else:
         mo.callout(
             mo.md("All **15 enum columns** conform 100% to the PDF specification. No unknown values, typos, or case variants found."),
-            _kind="neutral",
+            kind="neutral",
         )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -950,26 +686,10 @@ def _(mo, schemas):
     return (free_text,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(free_text, mo):
     mo.ui.table(free_text, label="Free-text categorical columns — distinct value counts")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -984,14 +704,6 @@ def _(mo):
     - **Special columns**: `bulan_masuk`, `renumerasi`, `durasi`
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1024,26 +736,10 @@ def _(mo, re, schemas):
     return (phone_results,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(mo, phone_results):
     mo.ui.table(phone_results, label="Phone format validation")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1056,17 +752,9 @@ def _(mo, phone_results):
                     f"**{_r['Table']}.{_r['Column']}**: {_r['Bad']:,} / {_r['Total']:,} ({_r['Bad%']}%) "
                     f"missing leading `0`. Samples: `{', '.join(str(_s) for _s in _r['Samples'][:3])}`"
                 ),
-                _kind="warn",
+                kind="warn",
             )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1092,26 +780,10 @@ def _(mo, schemas):
     return (email_results,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(email_results, mo):
     mo.ui.table(email_results, label="Email format validation")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1146,26 +818,10 @@ def _(mo, re, schemas):
     return (date_results,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(date_results, mo):
     mo.ui.table(date_results, label="Date format distribution")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1188,22 +844,14 @@ def _(date_results, mo):
                     for _r in date_results
                 )
             ),
-            _kind="warn",
+            kind="warn",
         )
     else:
         mo.callout(
             mo.md("All date columns use a consistent format."),
-            _kind="neutral",
+            kind="neutral",
         )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1240,14 +888,6 @@ def _(mo, re, schemas):
     return dur_bad_uniq, ren_other_uniq
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(dur_bad_uniq, mo, ren_other_uniq):
     notes = []
@@ -1259,17 +899,9 @@ def _(dur_bad_uniq, mo, ren_other_uniq):
     if notes:
         mo.callout(
             mo.md("\n".join(notes)),
-            _kind="neutral",
+            kind="neutral",
         )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1285,14 +917,6 @@ def _(mo):
     - **Cross-column counts**: `jumlah_permintaan` vs `headcount`, `jumlah_dikirimkan` vs `list_nim` count
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1327,15 +951,7 @@ def _(mo, pd, schemas):
     ]
 
     mo.md("### Numeric ranges")
-    return (pd, range_rows)
-
-
-
-
-
-
-
-
+    return equal, less, more, range_rows
 
 
 @app.cell
@@ -1343,14 +959,6 @@ def _(mo, range_rows):
     tbl = [{"Table": _t[0], "Column": _t[1], "Expected": _t[2], "Actual range": _t[3], "Extra": _t[4], "Bad": _t[5]} for _t in range_rows]
     mo.ui.table(tbl, label="Numeric range checks — all within expected bounds")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1367,14 +975,6 @@ def _(equal, less, mo, more):
     {less} rows have `sent < requested` — every case has `jumlah_dikirimkan = 0` with empty `send_date` and `list_nim`. These are draft/submitted records not yet dispatched.
     """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1419,29 +1019,13 @@ def _(mo, re, schemas):
         })
 
     mo.md("### Date range validation")
-    return date_rows, _tc
-
-
-
-
-
-
-
-
+    return (date_rows,)
 
 
 @app.cell
 def _(date_rows, mo):
     mo.ui.table(date_rows, label="All dates within 2022–2025 range, no future or pre-2020 outliers")
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1477,36 +1061,18 @@ def _(mo, pd, schemas):
     return
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 6: Cross-Table Consistency
+    mo.md("""
+    ---
+    ## Phase 6: Cross-Table Consistency
 
-        - Denormalized fields agree across tables (nama_perusahaan, posisi, jenis_penempatan, bidang_studi)
-        - `status_student.ketersediaan = Placed` ⇄ `tracking_student.rejection = Placement`
-        - Name/email/semester/prodi consistency between `student_all` and `status_student`
-        - Phone consistency (normalizing leading 0)
-        """
-    )
+    - Denormalized fields agree across tables (nama_perusahaan, posisi, jenis_penempatan, bidang_studi)
+    - `status_student.ketersediaan = Placed` ⇄ `tracking_student.rejection = Placement`
+    - Name/email/semester/prodi consistency between `student_all` and `status_student`
+    - Phone consistency (normalizing leading 0)
+    """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1548,50 +1114,24 @@ def _(schemas):
     return (checks,)
 
 
-
-
-
-
-
-
-
-
 @app.cell
 def _(checks, mo):
     mo.ui.table(
         checks,
-        _label=f"Denormalized field consistency — {sum(_c['Mismatches'] for _c in checks)} total mismatches across {len(checks)} checks",
+        label=f"Denormalized field consistency — {sum(_c['Mismatches'] for _c in checks)} total mismatches across {len(checks)} checks",
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ### Phone consistency: `student_all.hp` vs `status_student.no_whatsapp`
+    mo.md("""
+    ### Phone consistency: `student_all.hp` vs `status_student.no_whatsapp`
 
-        `student_all.hp` has proper `08xx` format; `status_student.no_whatsapp` is missing the leading `0`.
-        Once normalized (strip leading `0` from `student_all`), all phones match.
-        """
-    )
+    `student_all.hp` has proper `08xx` format; `status_student.no_whatsapp` is missing the leading `0`.
+    Once normalized (strip leading `0` from `student_all`), all phones match.
+    """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1612,14 +1152,6 @@ def _(mo, schemas):
         """
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1655,38 +1187,20 @@ def _(mo, schemas):
             - Record-keeping lag between tables
             """
         ),
-        _kind="warn",
+        kind="warn",
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 7: Consolidated Findings
+    mo.md("""
+    ---
+    ## Phase 7: Consolidated Findings
 
-        Aggregated summary of all issues discovered across Phases 1–6, ranked by severity.
-        """
-    )
+    Aggregated summary of all issues discovered across Phases 1–6, ranked by severity.
+    """)
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1786,17 +1300,9 @@ def _(mo):
 
     mo.ui.table(
         sorted(findings, key=lambda f: {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "OK": 3}[f["Severity"]]),
-        _label="Consolidated findings — data cleaning issues ranked by severity",
+        label="Consolidated findings — data cleaning issues ranked by severity",
     )
     return
-
-
-
-
-
-
-
-
 
 
 @app.cell
@@ -1816,7 +1322,7 @@ def _(mo):
             Remaining issues (garbage `list_nim`, `renumerasi`/`durasi` text values) are low-volume and can be handled in the dashboard layer.
             """
         ),
-        _kind="neutral",
+        kind="neutral",
     )
     return
 

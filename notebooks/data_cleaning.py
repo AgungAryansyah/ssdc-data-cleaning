@@ -248,5 +248,47 @@ def _(cleaned, mo, pd):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 5: Normalize `durasi`
+
+        Extract `durasi_months` column: numeric value for `"N Bulan"`, 999 for `"Tidak Terbatas"`.
+        Original `durasi` column preserved.
+        """
+    )
+    return
+
+
+@app.cell
+def _(cleaned, mo):
+    _df = cleaned["talent_request.csv"]
+    _dur = _df["durasi"].str.strip()
+
+    _df["durasi_months"] = 0
+    _df.loc[_dur == "Tidak Terbatas", "durasi_months"] = 999
+
+    _mask = _dur.str.match(r"^(\d+)\s*Bulan$")
+    _df.loc[_mask, "durasi_months"] = _dur[_mask].str.extract(r"(\d+)")[0].astype(int)
+
+    _counts = _df["durasi_months"].value_counts().sort_index().to_dict()
+
+    mo.md(
+        f"""
+        **talent_request.durasi** normalized → `durasi_months`.
+
+        | Value | Count |
+        |---|---|
+        | 3 | {_counts.get(3, 0):,} |
+        | 4 | {_counts.get(4, 0):,} |
+        | 6 | {_counts.get(6, 0):,} |
+        | 999 (Tidak Terbatas) | {_counts.get(999, 0):,} |
+        """
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

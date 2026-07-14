@@ -7,18 +7,17 @@ app = marimo.App()
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # Data Cleaning — SSDC Dataset
+    mo.md("""
+    # Data Cleaning — SSDC Dataset
 
-        Load the 6 raw CSVs, apply fixes, export cleaned versions to `data_clean/`.
-        """
-    )
+    Load the 6 raw CSVs, apply fixes, export cleaned versions to `data_clean/`.
+    """)
     return
 
 
@@ -26,6 +25,7 @@ def _(mo):
 def _():
     import pandas as pd
     from pathlib import Path
+
     return Path, pd
 
 
@@ -46,7 +46,7 @@ def _():
 
 
 @app.cell
-def _(DATA_DIR, DELIMITERS, Path, pd):
+def _(DATA_DIR, DELIMITERS, pd):
     def load_raw(name):
         delim = DELIMITERS.get(name, ",")
         return pd.read_csv(DATA_DIR / name, delimiter=delim, encoding="utf-8-sig", dtype=str)
@@ -55,8 +55,7 @@ def _(DATA_DIR, DELIMITERS, Path, pd):
     for f in sorted(DATA_DIR.glob("*.csv")):
         df = load_raw(f.name)
         raws[f.name] = df
-
-    return load_raw, raws
+    return (raws,)
 
 
 @app.cell
@@ -75,15 +74,13 @@ def _(mo, raws):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 1: Standardize Date Formats
+    mo.md("""
+    ---
+    ## Phase 1: Standardize Date Formats
 
-        Convert DMY (`dd/mm/yyyy`) → ISO (`yyyy-mm-dd`) in 3 tables.
-        ISO tables are already clean.
-        """
-    )
+    Convert DMY (`dd/mm/yyyy`) → ISO (`yyyy-mm-dd`) in 3 tables.
+    ISO tables are already clean.
+    """)
     return
 
 
@@ -120,19 +117,17 @@ def _(mo, pd, raws):
             for k, v in conversions.items()
         )
     )
-    return cleaned, conversions
+    return (cleaned,)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 2: Normalize Phone Numbers
+    mo.md("""
+    ---
+    ## Phase 2: Normalize Phone Numbers
 
-        Prepend `0` to all `status_student.no_whatsapp` values (currently missing leading `0`).
-        """
-    )
+    Prepend `0` to all `status_student.no_whatsapp` values (currently missing leading `0`).
+    """)
     return
 
 
@@ -159,15 +154,13 @@ def _(cleaned, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 3: Clean `list_nim`
+    mo.md("""
+    ---
+    ## Phase 3: Clean `list_nim`
 
-        Strip garbage NIM values (48 occurrences of `"2"`) from `tracking_company.list_nim`.
-        Recalculate `jumlah_dikirimkan` to match the cleaned list count.
-        """
-    )
+    Strip garbage NIM values (48 occurrences of `"2"`) from `tracking_company.list_nim`.
+    Recalculate `jumlah_dikirimkan` to match the cleaned list count.
+    """)
     return
 
 
@@ -205,15 +198,13 @@ def _(cleaned, mo, pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 4: Normalize `renumerasi`
+    mo.md("""
+    ---
+    ## Phase 4: Normalize `renumerasi`
 
-        Add `renumerasi_category` column: `"Paid"` / `"Non-Paid"` / `"Transport-Only"`.
-        Original `renumerasi` column preserved.
-        """
-    )
+    Add `renumerasi_category` column: `"Paid"` / `"Non-Paid"` / `"Transport-Only"`.
+    Original `renumerasi` column preserved.
+    """)
     return
 
 
@@ -250,15 +241,13 @@ def _(cleaned, mo, pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 5: Normalize `durasi`
+    mo.md("""
+    ---
+    ## Phase 5: Normalize `durasi`
 
-        Extract `durasi_months` column: numeric value for `"N Bulan"`, 999 for `"Tidak Terbatas"`.
-        Original `durasi` column preserved.
-        """
-    )
+    Extract `durasi_months` column: numeric value for `"N Bulan"`, 999 for `"Tidak Terbatas"`.
+    Original `durasi` column preserved.
+    """)
     return
 
 
@@ -292,14 +281,12 @@ def _(cleaned, mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        ---
-        ## Phase 6: Export Cleaned CSVs
+    mo.md("""
+    ---
+    ## Phase 6: Export Cleaned CSVs
 
-        Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.
-        """
-    )
+    Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.
+    """)
     return
 
 

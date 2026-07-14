@@ -203,5 +203,50 @@ def _(cleaned, mo, pd):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 4: Normalize `renumerasi`
+
+        Add `renumerasi_category` column: `"Paid"` / `"Non-Paid"` / `"Transport-Only"`.
+        Original `renumerasi` column preserved.
+        """
+    )
+    return
+
+
+@app.cell
+def _(cleaned, mo, pd):
+    _df = cleaned["talent_request.csv"]
+    _ren = _df["renumerasi"].str.strip().str.lower()
+
+    _conds = [
+        _ren.str.contains("non.paid", na=False),
+        _ren.str.contains("transport", na=False),
+        _ren.str.match(r"^rp\s?[\d.,]+", na=False),
+    ]
+    _choices = ["Non-Paid", "Transport-Only", "Paid"]
+    _df["renumerasi_category"] = pd.Series("Paid", index=_df.index)
+    for _cond, _choice in zip(_conds, _choices):
+        _df.loc[_cond, "renumerasi_category"] = _choice
+
+    _counts = _df["renumerasi_category"].value_counts().to_dict()
+
+    mo.md(
+        f"""
+        **talent_request.renumerasi** categorized.
+
+        | Category | Count |
+        |---|---|
+        | Paid | {_counts.get('Paid', 0):,} |
+        | Non-Paid | {_counts.get('Non-Paid', 0):,} |
+        | Transport-Only | {_counts.get('Transport-Only', 0):,} |
+        """
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

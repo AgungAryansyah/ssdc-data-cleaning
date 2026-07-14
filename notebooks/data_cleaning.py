@@ -73,5 +73,55 @@ def _(mo, raws):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 1: Standardize Date Formats
+
+        Convert DMY (`dd/mm/yyyy`) → ISO (`yyyy-mm-dd`) in 3 tables.
+        ISO tables are already clean.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, pd, raws):
+    cleaned = {k: v.copy() for k, v in raws.items()}
+
+    dmy_cols = {
+        "status_student.csv": ["sync_date"],
+        "tracking_company.csv": ["request_date", "send_date"],
+    }
+
+    conversions = {}
+    for _fname, _cols in dmy_cols.items():
+        _df = cleaned[_fname]
+        for _col in _cols:
+            series = _df[_col].dropna().str.strip()
+            series = series[series != ""]
+            before = series.head(3).tolist()
+            parsed = pd.to_datetime(series, format="%d/%m/%Y", errors="coerce")
+            _df[_col] = parsed.dt.strftime("%Y-%m-%d")
+            after = _df[_col].dropna().head(3).tolist()
+            conversions[f"{_fname}.{_col}"] = (before, after)
+
+    mo.md(
+        f"""
+        Converted **3 date columns** from DMY to ISO:
+
+        | Table.Column | Before | After |
+        |---|---|---|
+        """
+        + "\n".join(
+            f"| {k} | `{v[0]}` | `{v[1]}` |"
+            for k, v in conversions.items()
+        )
+    )
+    return cleaned, conversions
+
+
 if __name__ == "__main__":
     app.run()

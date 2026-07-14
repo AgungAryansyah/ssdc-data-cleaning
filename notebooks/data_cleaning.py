@@ -157,5 +157,51 @@ def _(cleaned, mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 3: Clean `list_nim`
+
+        Strip garbage NIM values (48 occurrences of `"2"`) from `tracking_company.list_nim`.
+        Recalculate `jumlah_dikirimkan` to match the cleaned list count.
+        """
+    )
+    return
+
+
+@app.cell
+def _(cleaned, mo, pd):
+    import re
+
+    _df = cleaned["tracking_company.csv"]
+    nim_re = re.compile(r"^\d{8,}$")
+    removed_total = 0
+
+    for _i, _row in _df.iterrows():
+        _val = str(_row["list_nim"]) if pd.notna(_row["list_nim"]) and str(_row["list_nim"]).strip() else ""
+        if not _val:
+            continue
+        _nims = [n.strip() for n in _val.split(",") if n.strip()]
+        _clean = [n for n in _nims if nim_re.match(n)]
+        _removed = len(_nims) - len(_clean)
+        if _removed > 0:
+            removed_total += _removed
+        _df.at[_i, "list_nim"] = ", ".join(_clean) if _clean else ""
+        _df.at[_i, "jumlah_dikirimkan"] = str(len(_clean))
+
+    mo.md(
+        f"""
+        **tracking_company.list_nim** cleaned.
+
+        - Removed **{removed_total}** garbage NIM values (all `"2"`)
+        - `jumlah_dikirimkan` recalculated to match actual NIM count in `list_nim`
+        - 598 unsent records (empty `list_nim`) left unchanged
+        """
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

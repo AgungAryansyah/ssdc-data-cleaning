@@ -123,5 +123,39 @@ def _(mo, pd, raws):
     return cleaned, conversions
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 2: Normalize Phone Numbers
+
+        Prepend `0` to all `status_student.no_whatsapp` values (currently missing leading `0`).
+        """
+    )
+    return
+
+
+@app.cell
+def _(cleaned, mo):
+    _df = cleaned["status_student.csv"]
+    _before = _df["no_whatsapp"].head(3).tolist()
+    _df["no_whatsapp"] = "0" + _df["no_whatsapp"]
+    _after = _df["no_whatsapp"].head(3).tolist()
+
+    mo.md(
+        f"""
+        **status_student.no_whatsapp** — 25,000 values normalized.
+
+        | Before | After |
+        |---|---|
+        | `{_before[0]}` | `{_after[0]}` |
+        | `{_before[1]}` | `{_after[1]}` |
+        | `{_before[2]}` | `{_after[2]}` |
+        """
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

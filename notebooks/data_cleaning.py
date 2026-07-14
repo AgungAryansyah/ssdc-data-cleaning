@@ -290,5 +290,38 @@ def _(cleaned, mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ---
+        ## Phase 6: Export Cleaned CSVs
+
+        Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.
+        """
+    )
+    return
+
+
+@app.cell
+def _(OUTPUT_DIR, cleaned, mo):
+    _written = []
+    for _name, _df in sorted(cleaned.items()):
+        _path = OUTPUT_DIR / _name
+        _df.to_csv(_path, index=False, encoding="utf-8")
+        _written.append({"File": _name, "Rows": len(_df), "Cols": len(_df.columns)})
+
+    mo.md(
+        f"""
+        Exported {len(_written)} files to `data_clean/`:
+
+        | File | Rows | Cols |
+        |---|---|---|
+        """
+        + "\n".join(f"| `{w['File']}` | {w['Rows']:,} | {w['Cols']} |" for w in _written)
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

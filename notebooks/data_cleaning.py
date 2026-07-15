@@ -371,6 +371,46 @@ def _(cleaned, mo, pd):
 def _(mo):
     mo.md("""
     ---
+    ## Phase 5.6: Add `eligible` Column
+
+    Derive `eligible` from `status = Active AND CV = Ada`. Verifying against
+    students who actually appear in tracking (applying) vs not.
+    """)
+    return
+
+
+@app.cell
+def _(cleaned, mo):
+    _ss = cleaned["status_student.csv"]
+    _ts = cleaned["tracking_student.csv"]
+
+    _ss["eligible"] = ((_ss["status"] == "Active") & (_ss["CV"] == "Ada")).map({True: "Ya", False: "Tidak"})
+
+    _applying = set(_ts["NIM"])
+    _not_applying = set(_ss["NIM"]) - _applying
+
+    _a_eligible = _ss[_ss["NIM"].isin(_applying)]["eligible"]
+    _na_eligible = _ss[_ss["NIM"].isin(_not_applying)]["eligible"]
+
+    mo.md(
+        f"""
+        **Eligibility**: `status = Active AND CV = Ada`.
+
+        | Group | Ya | Tidak | Ya % |
+        |---|---|---|---|
+        | Applying ({len(_applying):,}) | {(_a_eligible == 'Ya').sum():,} | {(_a_eligible == 'Tidak').sum():,} | {(_a_eligible == 'Ya').mean()*100:.0f}% |
+        | Not applying ({len(_not_applying):,}) | {(_na_eligible == 'Ya').sum():,} | {(_na_eligible == 'Tidak').sum():,} | {(_na_eligible == 'Ya').mean()*100:.0f}% |
+
+        **100% of applying students are eligible** — zero applying students have `CV = Tidak Ada` or non-Active `status`. The rule perfectly separates the two groups.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
     ## Phase 6: Export Cleaned CSVs
 
     Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.

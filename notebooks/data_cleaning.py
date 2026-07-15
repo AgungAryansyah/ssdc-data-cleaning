@@ -306,6 +306,71 @@ def _(cleaned, mo):
 def _(mo):
     mo.md("""
     ---
+    ## Phase 5.5: Placement Status Reconciliation
+
+    Source of truth = latest timestamp. Reconcile `status_student` and `tracking_student`
+    placement status using `last_update` vs `sync_date` comparison.
+    """)
+    return
+
+
+@app.cell
+def _(cleaned, mo, pd):
+    _ss = cleaned["status_student.csv"]
+    _ts = cleaned["tracking_student.csv"]
+
+    # B1: TS Placement newer than SS sync_date → update SS
+    _placed_nims = set(_ts[_ts["rejection"] == "Placement"]["NIM"])
+    _ss_not_placed = _placed_nims - set(_ss[_ss["ketersediaan"] == "Placed"]["NIM"])
+
+    _ts["last_update_dt"] = pd.to_datetime(_ts["last_update"], errors="coerce", format="%Y-%m-%d")
+    _updated = 0
+    _skipped = 0
+
+    for _nim in _ss_not_placed:
+        _ts_recs = _ts[(_ts["NIM"] == _nim) & (_ts["rejection"] == "Placement")]
+        if _ts_recs.empty:
+            continue
+        _ts_date = _ts_recs["last_update_dt"].max()
+        _ss_idx = _ss[_ss["NIM"] == _nim].index
+        if len(_ss_idx) == 0:
+            continue
+        _ss_date = pd.to_datetime(_ss.at[_ss_idx[0], "sync_date"], errors="coerce", format="%Y-%m-%d")
+
+        if pd.notna(_ts_date) and pd.notna(_ss_date) and _ts_date > _ss_date:
+            _ss.at[_ss_idx[0], "ketersediaan"] = "Placed"
+            _ss.at[_ss_idx[0], "sync_date"] = _ts_date.strftime("%Y-%m-%d")
+            _updated += 1
+        else:
+            _skipped += 1
+
+    # B3: SS-Placed but no tracking → mark as unverified
+    _ss_placed_set = set(_ss[_ss["ketersediaan"] == "Placed"]["NIM"])
+    _ts_all_nims = set(_ts["NIM"])
+    _untracked = _ss_placed_set - _ts_all_nims
+    for _nim in _untracked:
+        _idx = _ss[_ss["NIM"] == _nim].index
+        if len(_idx) > 0:
+            _ss.at[_idx[0], "ketersediaan"] = "Placed (Unverified)"
+
+    mo.md(
+        f"""
+        ### Placement reconciliation results
+
+        | Case | Count | Action |
+        |---|---|---|
+        | TS Placement → SS updated (TS newer) | {_updated} | SS `ketersediaan` → Placed |
+        | TS Placement, SS newer (ambiguous) | {_skipped} | Left as-is |
+        | SS Placed, no tracking (unverified) | {len(_untracked)} | Marked `Placed (Unverified)` |
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
     ## Phase 6: Export Cleaned CSVs
 
     Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.

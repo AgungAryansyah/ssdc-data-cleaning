@@ -156,10 +156,10 @@ def _(cleaned, mo):
 def _(mo):
     mo.md("""
     ---
-    ## Phase 3: Clean `list_nim`
+    ## Phase 3: Recover truncated NIMs in `list_nim`
 
-    Strip garbage NIM values (48 occurrences of `"2"`) from `tracking_company.list_nim`.
-    Recalculate `jumlah_dikirimkan` to match the cleaned list count.
+    Cross-reference `tracking_student` to find full NIMs for the 48 truncated `"2"` entries
+    in `tracking_company.list_nim`. Recalculate `jumlah_dikirimkan`.
     """)
     return
 
@@ -169,27 +169,50 @@ def _(cleaned, mo, pd):
     import re
 
     _df = cleaned["tracking_company.csv"]
+    _ts = cleaned["tracking_student.csv"]
     nim_re = re.compile(r"^\d{8,}$")
-    removed_total = 0
+    recovered_total = 0
 
+    _samples = []
     for _i, _row in _df.iterrows():
         _val = str(_row["list_nim"]) if pd.notna(_row["list_nim"]) and str(_row["list_nim"]).strip() else ""
         if not _val:
             continue
         _nims = [n.strip() for n in _val.split(",") if n.strip()]
+        _garbage = [n for n in _nims if not nim_re.match(n)]
         _clean = [n for n in _nims if nim_re.match(n)]
-        _removed = len(_nims) - len(_clean)
-        if _removed > 0:
-            removed_total += _removed
+
+        if _garbage:
+            _tc_id = _row["id_tracking_company"]
+            _ts_nims = set(_ts[_ts["id_tracking_company"] == _tc_id]["NIM"].tolist())
+            _extra = sorted(_ts_nims - set(_clean))
+
+            for _g in _garbage:
+                if _extra:
+                    _recovered = _extra.pop(0)
+                    _clean.append(_recovered)
+                    recovered_total += 1
+                    if len(_samples) < 3:
+                        _samples.append((_tc_id, _g, _recovered))
+
         _df.at[_i, "list_nim"] = ", ".join(_clean) if _clean else ""
         _df.at[_i, "jumlah_dikirimkan"] = str(len(_clean))
 
+    _sample_text = "\n".join(
+        f"| `{_s[0]}` | `{_s[1]}` | `{_s[2]}` |"
+        for _s in _samples
+    )
+
     mo.md(
         f"""
-        **tracking_company.list_nim** cleaned.
+        **tracking_company.list_nim** — recovered truncated NIMs from `tracking_student`.
 
-        - Removed **{removed_total}** garbage NIM values (all `"2"`)
-        - `jumlah_dikirimkan` recalculated to match actual NIM count in `list_nim`
+        | TC ID | Garbage | Recovered |
+        |---|---|---|
+        {_sample_text}
+
+        - **{recovered_total}** truncated NIMs recovered (all `"2"` → full 8-digit NIM)
+        - `jumlah_dikirimkan` recalculated to match final `list_nim` count
         - 598 unsent records (empty `list_nim`) left unchanged
         """
     )

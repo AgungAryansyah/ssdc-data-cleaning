@@ -515,6 +515,52 @@ def _(cleaned, mo, pd):
 def _(mo):
     mo.md("""
     ---
+    ## Phase 5.9: Normalize `bidang_studi`
+
+    Sort `bidang_studi_dibutuhkan` and `bidang_studi_dicari` values
+    alphabetically within each row. Original columns preserved.
+    """)
+    return
+
+
+@app.cell
+def _(cleaned, mo, pd):
+    def _normalize(val):
+        if pd.isna(val) or str(val).strip() == "":
+            return ""
+        _items = [t.strip() for t in str(val).split(",") if t.strip()]
+        return ",".join(sorted(_items, key=str.lower))
+
+    _tr = cleaned["talent_request.csv"]
+    _tr["bidang_studi_dibutuhkan_normalized"] = _tr["bidang_studi_dibutuhkan"].apply(_normalize)
+
+    _tc = cleaned["tracking_company.csv"]
+    _tc["bidang_studi_dicari_normalized"] = _tc["bidang_studi_dicari"].apply(_normalize)
+
+    _tr_raw = _tr["bidang_studi_dibutuhkan"].nunique()
+    _tr_norm = _tr["bidang_studi_dibutuhkan_normalized"].nunique()
+    _tc_raw = _tc["bidang_studi_dicari"].nunique()
+    _tc_norm = _tc["bidang_studi_dicari_normalized"].nunique()
+
+    mo.md(
+        f"""
+        **bidang_studi** normalized — ordering variants collapsed.
+
+        | Column | Before | After |
+        |---|---|---|
+        | `talent_request.bidang_studi_dibutuhkan` | {_tr_raw:,} | {_tr_norm:,} |
+        | `tracking_company.bidang_studi_dicari` | {_tc_raw:,} | {_tc_norm:,} |
+
+        Original columns preserved.
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
     ## Phase 6: Export Cleaned CSVs
 
     Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.

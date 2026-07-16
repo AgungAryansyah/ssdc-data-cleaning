@@ -466,6 +466,55 @@ def _(cleaned, mo, pd):
 def _(mo):
     mo.md("""
     ---
+    ## Phase 5.8: Normalize `tools`
+
+    Sort tool names alphabetically within each row and split slashed tokens
+    (e.g., `C/C++` → `C`, `C++`). Original `tools` column preserved.
+    """)
+    return
+
+
+@app.cell
+def _(cleaned, mo, pd):
+    _ss = cleaned["status_student.csv"]
+
+    def _normalize_tools(val):
+        if pd.isna(val) or str(val).strip() == "":
+            return ""
+        _tokens = []
+        _items = [t.strip() for t in str(val).split(",") if t.strip()]
+        for _item in _items:
+            _sub = [s.strip() for s in _item.split("/") if s.strip()]
+            _tokens.extend(_sub)
+        return ",".join(sorted(set(_tokens), key=str.lower))
+
+    _ss["tools_normalized"] = _ss["tools"].apply(_normalize_tools)
+
+    _raw_unique = _ss["tools"].nunique()
+    _norm_unique = _ss["tools_normalized"].nunique()
+    _reduction = round((1 - _norm_unique / _raw_unique) * 100)
+
+    mo.md(
+        f"""
+        **status_student.tools** normalized → `tools_normalized`.
+
+        | Metric | Before | After |
+        |---|---|---|
+        | Distinct values | {_raw_unique:,} | {_norm_unique:,} |
+        | Reduction | — | **{_reduction}%** |
+
+        - Split slashed tokens: `C/C++` → `C` + `C++`, `HTML/CSS` → `HTML` + `CSS`
+        - Sorted alphabetically within each row
+        - Original `tools` column preserved
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
     ## Phase 6: Export Cleaned CSVs
 
     Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.

@@ -420,6 +420,50 @@ def _(cleaned, mo):
 def _(mo):
     mo.md("""
     ---
+    ## Phase 5.7: Normalize `bulan_masuk`
+
+    Parse human-readable `"Bulan Tahun"` format into numeric `bulan_masuk_month`
+    and `bulan_masuk_year` columns. Original column preserved.
+    """)
+    return
+
+
+@app.cell
+def _(cleaned, mo, pd):
+    _sa = cleaned["student_all.csv"]
+    _bm = _sa["bulan_masuk"].str.strip()
+
+    _month_names = {
+        "Januari": "01", "Februari": "02", "Maret": "03", "April": "04",
+        "Mei": "05", "Juni": "06", "Juli": "07", "Agustus": "08",
+        "September": "09", "Oktober": "10", "November": "11", "Desember": "12",
+    }
+
+    _parts = _bm.str.extract(r"^(\w+)\s+(\d{4})$")
+    _sa["bulan_masuk_month"] = _parts[0].map(_month_names).fillna("00")
+    _sa["bulan_masuk_year"] = _parts[1].fillna("0000")
+
+    _yrs = sorted(_sa["bulan_masuk_year"].unique(), key=int)
+    _yrs_str = ", ".join(str(y) for y in _yrs if y != "0000")
+
+    mo.md(
+        f"""
+        **student_all.bulan_masuk** normalized → `bulan_masuk_month`, `bulan_masuk_year`.
+
+        | Column | Description |
+        |---|---|
+        | `bulan_masuk` | Original `"Bulan Tahun"` text (preserved) |
+        | `bulan_masuk_month` | Numeric `01`–`12` |
+        | `bulan_masuk_year` | Numeric year, range: {_yrs_str} |
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ---
     ## Phase 6: Export Cleaned CSVs
 
     Write all 6 DataFrames to `data_clean/` — UTF-8, `,` delimiter, no BOM.

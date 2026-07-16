@@ -195,7 +195,7 @@ def _(cleaned, mo, pd):
                     if len(_samples) < 3:
                         _samples.append((_tc_id, _g, _recovered))
 
-        _df.at[_i, "list_nim"] = ", ".join(_clean) if _clean else ""
+        _df.at[_i, "list_nim"] = ",".join(_clean) if _clean else ""
         _df.at[_i, "jumlah_dikirimkan"] = str(len(_clean))
 
     _sample_text = "\n".join(

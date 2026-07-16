@@ -361,6 +361,8 @@ def _(cleaned, mo, pd):
         if len(_idx) > 0:
             _ss.at[_idx[0], "placement_verified"] = "Ya"
 
+    _ts.drop(columns=["last_update_dt"], inplace=True)
+
     mo.md(
         f"""
         ### Placement reconciliation results

@@ -319,6 +319,9 @@ def _(cleaned, mo, pd):
     _ss = cleaned["status_student.csv"]
     _ts = cleaned["tracking_student.csv"]
 
+    _ss["placement_verified"] = ""
+    _ts_nims = set(_ts["NIM"])
+
     # B1: TS Placement newer than SS sync_date → update SS
     _placed_nims = set(_ts[_ts["rejection"] == "Placement"]["NIM"])
     _ss_not_placed = _placed_nims - set(_ss[_ss["ketersediaan"] == "Placed"]["NIM"])
@@ -344,14 +347,19 @@ def _(cleaned, mo, pd):
         else:
             _skipped += 1
 
-    # B3: SS-Placed but no tracking → mark as unverified
+    # B3: Add placement_verified column to separate tracking verification from placement status
     _ss_placed_set = set(_ss[_ss["ketersediaan"] == "Placed"]["NIM"])
-    _ts_all_nims = set(_ts["NIM"])
-    _untracked = _ss_placed_set - _ts_all_nims
+    _untracked = _ss_placed_set - _ts_nims
     for _nim in _untracked:
         _idx = _ss[_ss["NIM"] == _nim].index
         if len(_idx) > 0:
-            _ss.at[_idx[0], "ketersediaan"] = "Placed (Unverified)"
+            _ss.at[_idx[0], "placement_verified"] = "Tidak"
+
+    _tracked_placed = _ss_placed_set & _ts_nims
+    for _nim in _tracked_placed:
+        _idx = _ss[_ss["NIM"] == _nim].index
+        if len(_idx) > 0:
+            _ss.at[_idx[0], "placement_verified"] = "Ya"
 
     mo.md(
         f"""
@@ -361,7 +369,8 @@ def _(cleaned, mo, pd):
         |---|---|---|
         | TS Placement → SS updated (TS newer) | {_updated} | SS `ketersediaan` → Placed |
         | TS Placement, SS newer (ambiguous) | {_skipped} | Left as-is |
-        | SS Placed, no tracking (unverified) | {len(_untracked)} | Marked `Placed (Unverified)` |
+        | SS Placed, no tracking | {len(_untracked)} | `placement_verified` → Tidak |
+        | SS Placed, has tracking | {len(_tracked_placed)} | `placement_verified` → Ya |
         """
     )
     return
